@@ -1,4 +1,0 @@
-# Compatibility entry point for older installation instructions.
-# Resolve dependencies for the user platform and package index.
-# This is not an exact version lock.
--r requirements.txt

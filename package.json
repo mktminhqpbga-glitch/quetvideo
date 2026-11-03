@@ -1,6 +1,0 @@
-{
-  "name": "facebook-page-migrator-tests",
-  "private": true,
-  "scripts": {"test:browser": "node tests/browser.cjs", "test:native": "node tests/browser-native.cjs", "test:core": "node tests/browser-core.cjs", "test:content": "node tests/content-regression.cjs"},
-  "devDependencies": {"playwright": "1.64.1"}
-}
