@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Facebook Page Migrator",
-  "version": "0.1.0",
-  "description": "Quét, lưu và xem trước bài Facebook; đăng bài đã chọn qua bridge cục bộ.",
-  "permissions": ["storage"],
-  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "version": "0.2.0",
+  "description": "Tự cuộn quét bài trên tab Facebook đang đăng nhập, lưu nội dung và tải media trực tiếp, không cần Python.",
+  "permissions": ["storage", "scripting", "downloads"],
+  "host_permissions": ["https://*.facebook.com/*", "http://127.0.0.1:8765/*"],
   "action": {"default_title": "Mở Facebook Page Migrator"},
   "background": {"service_worker": "background.js"},
   "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'; connect-src http://127.0.0.1:8765"}
