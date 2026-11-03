@@ -12,13 +12,14 @@ Extension Chrome Manifest V3 + bridge Python chạy trên máy của bạn. Kế
 
 ## Cài trên máy bạn
 
-Cần Python 3.12 và Chrome/Chromium. Bridge phải chạy cùng máy với Chrome: extension chỉ kết nối `127.0.0.1:8765`. Mở terminal trong thư mục dự án.
+Cần Python 3.10 trở lên (khuyên dùng 3.12) và Chrome/Chromium. Bridge phải chạy cùng máy với Chrome: extension chỉ kết nối `127.0.0.1:8765`. Mở terminal trong thư mục dự án.
 
 macOS/Linux:
 
 ```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.lock
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python run.py
 ```
 
@@ -26,9 +27,14 @@ Windows PowerShell:
 
 ```powershell
 py -3.12 -m venv .venv
-.venv\Scripts\python.exe -m pip install -r requirements.lock
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe run.py
 ```
+
+Nếu macOS báo không có `python3.12`, cài Python 3.12 từ [python.org](https://www.python.org/downloads/macos/) trước. Nếu môi trường `.venv` cũ dùng Python thấp hơn 3.10, tạo môi trường mới tên `.venv312` bằng `python3.12 -m venv .venv312`, rồi thay `.venv` bằng `.venv312` trong các lệnh tiếp theo. Không cần xóa môi trường cũ.
+
+Nếu gặp `No matching distribution found` cho dependency trong file khóa cũ, nhấn Control+C để dừng bridge, cập nhật mã nguồn hoặc cài trực tiếp bằng `requirements.txt`. Bridge nay kiểm tra phiên bản Python và thư viện trước khi hỏi cấu hình.
 
 Launcher hỏi ID Page đích, phiên bản Graph API của Meta App và Page access token (ẩn khi nhập). Enter để bỏ qua phần đăng và chỉ dùng quét/tải. Token chỉ ở bộ nhớ tiến trình; không ghi vào extension, file dự án hay JSON xuất. Không gửi token hoặc cookie trong chat.
 
@@ -91,6 +97,6 @@ Nếu Chromium được quản trị chặn cài extension, có thể chạy b�
 
 ## Trạng thái bản bàn giao
 
-Đã cài và kiểm tra import chung ba thư viện trên Python 3.12; dependency đã khóa tại `requirements.lock`. `lxml_html_clean` được thêm để sửa tương thích import của scraper với lxml mới. Chưa kiểm thử quét/tải/đăng trên Facebook thật vì chưa có Page nguồn và cấu hình tài khoản của bạn. Mã nguồn dự án được quản lý tại [mktminhqpbga-glitch/quetvideo](https://github.com/mktminhqpbga-glitch/quetvideo).
+Đã cài và kiểm tra import chung ba thư viện trên Python 3.12; Cài bằng `requirements.txt` để pip chọn dependency phù hợp với Python, hệ điều hành và nguồn gói của máy bạn. `requirements.lock` chỉ còn là file tương thích trỏ tới `requirements.txt`, không phải khóa phiên bản tuyệt đối. `lxml_html_clean` được thêm để sửa tương thích import của scraper với lxml mới. Chưa kiểm thử quét/tải/đăng trên Facebook thật vì chưa có Page nguồn và cấu hình tài khoản của bạn. Mã nguồn dự án được quản lý tại [mktminhqpbga-glitch/quetvideo](https://github.com/mktminhqpbga-glitch/quetvideo).
 
 Kết quả tại môi trường bàn giao: 11/11 kiểm thử backend đạt, `pip check` đạt và bộ kiểm thử giao diện `UI_ONLY=1` đạt (không lỗi JavaScript). Kiểm thử extension cài thật bị chính sách quản trị Chromium chặn; cần chạy lại trên Chrome/Chromium cá nhân cho phép **Load unpacked**. Chưa xác minh upload/đăng thật, quyền Meta App, hoặc độ đầy đủ của dữ liệu một Page cụ thể.

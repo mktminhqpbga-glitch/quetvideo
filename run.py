@@ -2,8 +2,10 @@
 import getpass
 import os
 from bridge.server import main
+from bridge.checks import check_runtime
 
 if __name__ == '__main__':
+    check_runtime()
     print('Enter để bỏ qua cấu hình đăng: bạn vẫn có thể quét/tải bài.')
     if not os.environ.get('FB_TARGET_PAGE_ID'):
         target = input('ID số của Page đích (không phải URL): ').strip()

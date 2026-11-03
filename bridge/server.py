@@ -6,9 +6,11 @@ import secrets
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .service import Service
 from .connectors import UserError
+from .checks import check_runtime
 
 
 def main():
+    check_runtime()
     service = Service(os.environ.get('FB_DATA_DIR', 'data'))
     key = secrets.token_urlsafe(32)
 
