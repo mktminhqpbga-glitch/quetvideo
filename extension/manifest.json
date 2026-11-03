@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Facebook Page Migrator",
+  "version": "0.1.0",
+  "description": "Quét, lưu và xem trước bài Facebook; đăng bài đã chọn qua bridge cục bộ.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:8765/*"],
+  "action": {"default_title": "Mở Facebook Page Migrator"},
+  "background": {"service_worker": "background.js"},
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'; connect-src http://127.0.0.1:8765"}
+}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Facebook Page Migrator</title><link rel="stylesheet" href="style.css"></head>
+<body><main>
+<h1>Chuyển bài Facebook</h1>
+<p>Thu thập bài mà tài khoản có thể truy cập, tải nội dung về máy và đăng các bài bạn chọn lên Page mới.</p>
+<section><h2>1. Kết nối bridge trên máy bạn</h2>
+<label>Mã ghép nối từ terminal <input id="key" type="password" autocomplete="off"></label>
+<button id="connect">Kết nối</button><p id="connection">Chưa kết nối</p>
+<p>Access token Facebook chỉ được cấu hình trong bridge, không nhập vào extension.</p></section>
+<section><h2>2. Thu thập bài</h2>
+<label>Tên hoặc URL Page nguồn <input id="source" placeholder="https://www.facebook.com/tenpage"></label>
+<label>Số trang feed để quét (1–100) <input id="pages" type="number" min="1" max="100" value="3"></label>
+<button id="scan" disabled>Quét bài</button><button id="refresh" disabled>Tải lại danh sách</button>
+<p>Không bảo đảm quét hết lịch sử: Facebook có thể yêu cầu đăng nhập hoặc giới hạn bài truy cập được. Không lấy bình luận, lượt thích hay ngày đăng gốc để đăng lại.</p></section>
+<section><h2>3. Xem trước và chọn bài</h2>
+<div class="toolbar"><label><input type="checkbox" id="all"> Chọn tất cả đang hiển thị</label><span id="count">0 đã chọn</span>
+<button id="download" disabled>Tải nội dung đã chọn</button><button id="export" disabled>Xuất danh sách JSON</button></div>
+<p>Ảnh/video nằm trong thư mục <code>data/media</code> của bridge. JSON xuất từ đây chứa nội dung và nguồn bài, không chứa token.</p>
+<div id="posts"></div></section>
+<section><h2>4. Đăng lên Page mới</h2>
+<p id="target">Page đích chưa cấu hình</p>
+<label><input type="checkbox" id="rights"> Tôi có quyền sử dụng và đăng lại nội dung đã chọn.</label>
+<p>Đăng ngay theo thứ tự cũ đến mới trong danh sách. Ngày đăng sẽ là thời điểm đăng mới. Bài đã đăng hoặc chưa rõ kết quả không được tự đăng lại.</p>
+<button id="publish" disabled>Đăng các bài đã chọn…</button></section>
+<p id="status" role="status" aria-live="polite">Khởi động bridge rồi nhập mã ghép nối.</p>
+</main><script src="app.js"></script></body></html>

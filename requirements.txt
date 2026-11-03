@@ -1,0 +1,4 @@
+facebook-scraper==0.2.59
+yt-dlp>=2025.1.26
+facebook-business>=22.0.0
+lxml_html_clean>=0.4.1
