@@ -1,14 +1,16 @@
 <!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><title>Quetvideo · Quét ngay trên Chrome</title><link rel="stylesheet" href="style.css"></head>
-<body><main><h1>Quét bài từ tab Facebook</h1>
+<body><main><h1>Quét bài từ tab Facebook · 0.2.1</h1>
 <p>Dùng Facebook đang đăng nhập trên Chrome. Không cần Python, token hoặc mã ghép nối để quét.</p>
 <section><h2>1. Chọn tab Facebook</h2>
 <p>Mở Page nguồn trong một tab Facebook, ở phần bài viết. Sau đó quay lại đây và bấm “Tìm tab Facebook”.</p>
 <button id="tabs">Tìm tab Facebook</button><label>Tab nguồn <select id="sourceTab" aria-label="Tab Facebook nguồn"></select></label>
+<p id="sourceUrl">Chưa chọn tab nguồn.</p>
 <label>Số bài tối đa trong đợt này <input id="limit" type="number" min="1" max="200" value="50"></label>
 <button id="start">Bắt đầu tự quét</button><button id="stop" disabled>Dừng quét</button>
 <p>Extension sẽ chuyển sang tab nguồn và tự cuộn. Để tab nguồn mở, tránh cuộn tay khi quét. Dừng khi đủ số bài hoặc không tìm thấy bài mới sau nhiều lần cuộn; điều này không xác nhận đã lấy hết lịch sử.</p>
 <p id="scanState" role="status">Chưa quét.</p></section>
+<section><h2>Tiến độ và chẩn đoán</h2><p id="scanDiagnostics">Chưa có dữ liệu chẩn đoán. Sau khi bắt đầu, các số bên dưới cập nhật theo từng vòng quét.</p><p>Nếu dừng ở 0 bài, gửi URL Page và dòng chẩn đoán này. Không cần gửi mật khẩu hay cookie.</p></section>
 <section><h2>2. Nội dung đã thu thập</h2>
 <div class="toolbar"><label><input id="selectAll" type="checkbox"> Chọn tất cả</label><span id="selectedCount">0 đã chọn</span>
 <button id="saveJson">Tải nội dung JSON</button><button id="saveMedia">Tải ảnh/video trực tiếp</button><button id="clear">Xóa danh sách cục bộ</button></div>

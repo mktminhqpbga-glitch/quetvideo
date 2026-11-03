@@ -10,8 +10,11 @@ async function handle(message,sender){
       if(!current.scan.running)throw Error('Phiên quét đã dừng.');
       if(!Array.isArray(message.posts)||message.posts.length>200)throw Error('Kết quả quét không hợp lệ.');
       const posts=qvCore.merge(current.posts,message.posts);
-      await chrome.storage.local.set({browserPosts:posts,browserScan:{...current.scan,count:message.count||0,reason:'Đang tự cuộn và thu thập bài…'}});
-    }else await chrome.storage.local.set({browserScan:{...current.scan,running:false,count:message.count||0,reason:String(message.reason||'Đã dừng.').slice(0,600)}});
+      const diagnostics={};
+      for(const key of ['round','articleCandidates','postLinks','elapsedSeconds','scrollTop','scrollHeight','viewportHeight']){const value=message.diagnostics?.[key];if(Number.isFinite(value)&&value>=0)diagnostics[key]=Math.min(Math.round(value),1e9);}
+      diagnostics.innerScroll=message.diagnostics?.innerScroll===true;
+      await chrome.storage.local.set({browserPosts:posts,browserScan:{...current.scan,count:message.count||0,diagnostics,lastUpdate:Date.now(),reason:message.count?'Đang tự cuộn và thu thập bài…':'Đang kiểm tra trang; chưa thu được bài. Xem dòng chẩn đoán bên dưới.'}});
+    }else await chrome.storage.local.set({browserScan:{...current.scan,running:false,count:message.count||0,lastUpdate:Date.now(),reason:String(message.reason||'Đã dừng.').slice(0,600)}});
     return {ok:true};
   }
   if(!sender.url?.startsWith(chrome.runtime.getURL('')))throw Error('Chỉ nhận lệnh từ giao diện extension.');

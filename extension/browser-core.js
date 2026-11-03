@@ -12,12 +12,17 @@ globalThis.qvCore = {
     return {id:post.id,url,text:String(post.text||'').slice(0,12000),
       images:[...new Set((Array.isArray(post.images)?post.images:[]).map(x=>this.mediaUrl(x)).filter(Boolean))].slice(0,10),
       videos:[...new Set((Array.isArray(post.videos)?post.videos:[]).map(x=>this.mediaUrl(x)).filter(Boolean))].slice(0,1),
-      videoNeedsManual:post.videoNeedsManual===true,sourcePage:this.facebookUrl(post.sourcePage)||'',
+      videoNeedsManual:post.videoNeedsManual===true,permalinkFound:post.permalinkFound!==false,
+      fingerprint:/^[a-f0-9]{16}$/.test(post.fingerprint||'')?post.fingerprint:'',sourcePage:this.facebookUrl(post.sourcePage)||'',
       time:String(post.time||'').slice(0,100),scannedAt:new Date().toISOString()};
   },
   merge(before,incoming) {
     const map=new Map(before.map(p=>[p.id,p]));
     for(const raw of incoming){const post=this.cleanPost(raw);if(!post)continue;
+      if(post.fingerprint){
+        const match=[...map.values()].find(p=>p.fingerprint===post.fingerprint&&p.sourcePage===post.sourcePage&&(p.permalinkFound===false||post.permalinkFound===false));
+        if(match){if(match.permalinkFound!==false&&post.permalinkFound===false)continue;map.delete(match.id);}
+      }
       const old=map.get(post.id);
       if(old){post.text=post.text.length>=old.text.length?post.text:old.text;
         post.images=[...new Set([...old.images,...post.images])].slice(0,10);

@@ -16,4 +16,9 @@ assert.equal(merged.length,1);assert.equal(merged[0].text,'Nội dung dài hơn'
 assert.equal(c.merge(merged,[{...sample,text:'Ngắn'}])[0].text,'Nội dung dài hơn');
 assert.equal(c.cleanPost({...sample,text:'x'.repeat(15000)}).text.length,12000);
 assert.throws(()=>c.merge([],Array.from({length:2001},(_,i)=>({...sample,id:String(i)}))),/2.000/);
+const fallback={...sample,id:'dom_aabbccddaabbccdd',permalinkFound:false,fingerprint:'aabbccddaabbccdd',url:'https://www.facebook.com/profile.php?id=61596177991080',sourcePage:'https://www.facebook.com/profile.php?id=61596177991080'};
+const resolved={...fallback,id:'999',permalinkFound:true,url:'https://www.facebook.com/example/posts/999'};
+assert.equal(c.merge([c.cleanPost(fallback)],[resolved]).length,1);
+assert.equal(c.merge([c.cleanPost(resolved)],[fallback])[0].id,'999');
+assert.equal(new URL(c.cleanPost(fallback).url).searchParams.get('id'),'61596177991080');
 console.log('PASS browser scan validation: DOM data sanitization, allowed media hosts, safe IDs, deduplication, richer text preservation, size limits.');

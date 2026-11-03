@@ -43,6 +43,8 @@ async function main(){
   await ui.locator('#limit').fill('2');await ui.locator('#start').click();
   await ui.waitForFunction(()=>document.querySelectorAll('article').length===2);
   await ui.waitForFunction(()=>document.querySelector('#scanState').textContent.includes('Đã đạt số bài'));
+  await ui.waitForFunction(()=>document.querySelector('#status').textContent.includes('Đã đạt số bài'));
+  assert.match(await ui.locator('#scanDiagnostics').innerText(),/khối bài/);
   assert.equal(stored.browserPosts.length,2);assert.equal(stored.browserPosts[0].videoNeedsManual,true);
   assert.equal(stored.browserPosts[0].images.length,1);
   assert.match(stored.browserPosts[1].text,/sau khi cuộn/);

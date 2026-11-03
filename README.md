@@ -1,6 +1,6 @@
 # Quetvideo — Facebook Page Migrator
 
-## Quét ngay trên Chrome — không cần cài Python (v0.2.0)
+## Quét ngay trên Chrome — không cần cài Python (v0.2.1)
 
 1. Tải repo qua **Code → Download ZIP** và giải nén.
 2. Mở `chrome://extensions`, bật **Developer mode**, chọn **Load unpacked**, chọn thư mục `extension`.
@@ -11,11 +11,19 @@
 
 **Chế độ này không dùng terminal, mã ghép nối, access token hoặc cookie xuất ra file.** Dùng phiên đăng nhập sẵn có của tab Facebook, chỉ đọc nội dung DOM đang hiển thị và tự cuộn để tải thêm; không gọi API nội bộ hoặc vượt kiểm soát truy cập. Có thể đóng chương trình Python cũ nếu đang chạy.
 
+### Nếu bấm bắt đầu nhưng không có bài
+
+Bản 0.2.1 cập nhật tiến độ cả trên đầu trang và thanh trạng thái dưới cùng. Kiểm tra mục **Tiến độ và chẩn đoán**: số vòng, số khối bài, liên kết bài, thời gian và vị trí cuộn. Nếu không nhận diện được dữ liệu, công cụ dừng với lý do cụ thể thay vì chỉ giữ dòng “Đã bắt đầu”.
+
+Sau khi thay mã extension: bấm **Tải lại** trong `chrome://extensions`, đóng tab giao diện cũ, tải lại tab Facebook rồi mở extension từ biểu tượng. Tiêu đề phải hiển thị **0.2.1**. Chọn đúng URL Page nguồn trong danh sách tab. Với Page `profile.php?id=...`, ID được giữ nguyên khi lưu link nguồn. Bộ quét đã bổ sung khối bài lồng nhau, thẻ video/Reels và khung cuộn bên trong.
+
+Nếu vẫn 0 bài, gửi URL Page cùng dòng chẩn đoán. Không gửi cookie/mật khẩu. Các bố cục mới đã được kiểm thử trên HTML mô phỏng; chưa xác minh trên Page Facebook thật hoặc tài khoản của bạn.
+
 ### Giới hạn của quét bằng trình duyệt
 
 - Tối đa 200 bài mỗi đợt, 2.000 bài/8MB danh sách cục bộ. Dữ liệu được giữ trong Chrome khi đóng tab. Nếu muốn quét tiếp, giữ Page tại vị trí đang đọc rồi bắt đầu đợt mới. Xuất JSON/tải media trước khi xóa danh sách để lấy đợt khác.
 - Tự dừng khi đủ số bài hoặc không thấy bài mới sau 8 lần cuộn. Điều này **không bảo đảm đã quét hết lịch sử Page**. Facebook có thể tải chậm, chặn truy cập hoặc đổi cấu trúc HTML.
-- Chỉ nhận diện bài có permalink được hỗ trợ (`posts`, `videos`, `reel`, `permalink.php`, `story.php`, `watch`). Bài không nhận diện được có thể bị bỏ qua; bài chia sẻ có thể bị nhận nhầm liên kết nguồn. Nên kiểm tra bài gốc trước khi dùng dữ liệu.
+- Nhận diện permalink dạng `posts`, `videos`, `reel/reels`, `share/p`, `share/v`, `share/r`, `permalink.php`, `story.php`, `watch`. Khi chưa có permalink, giữ nội dung hiển thị với mã tạm và ghi rõ chỉ có link Page nguồn. Giữ tham số `id` cho Page dạng `profile.php?id=...`. Bài không nhận diện được có thể bị bỏ qua; bài chia sẻ có thể bị nhận nhầm liên kết nguồn. Nên kiểm tra nội dung trước khi dùng dữ liệu.
 - Tối đa 10 ảnh và một URL video trực tiếp mỗi bài. Ảnh/video phải có URL HTTPS CDN Facebook. Video `blob:`, Reels hoặc luồng phát không có URL file trực tiếp cần tải thủ công. URL ký có thể hết hạn; yêu cầu tải được tạo không có nghĩa tải đã thành công.
 - Văn bản là nội dung nhận diện từ giao diện, tối đa 12.000 ký tự; có thể lẫn nhãn giao diện nếu Facebook đổi HTML. Thời gian chỉ lấy từ thẻ `time` khi có, không suy ra ngày đăng còn thiếu. Không lấy bình luận/phản ứng.
 - Không tự đăng trong chế độ không cài thêm phần mềm. Bấm **Sao chép nội dung** ở bài đã chọn, mở Page đích, dán nội dung và chọn ảnh/video tải về rồi bấm Đăng trực tiếp trong Facebook. Luồng API nâng cao bên dưới vẫn được giữ riêng; danh sách quét Chrome không tự nhập vào bridge.
@@ -28,6 +36,7 @@ npm ci
 npx playwright install chromium
 npm run test:core
 npm run test:native
+npm run test:content
 ```
 
 Các lệnh này chỉ dành cho phát triển/kiểm thử, không cần chạy để dùng extension. Bộ test dùng trang HTML mô phỏng và Chrome API giả lập, không gửi request Facebook thật.

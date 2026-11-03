@@ -2,10 +2,14 @@
 const $=id=>document.getElementById(id);
 let posts=[],scan={},selected=new Set(),busy=false;
 function status(text){$('status').textContent=text;}
+function progress(){return (scan.running?'Đang quét':'Đã dừng')+' · '+(scan.count||0)+' bài trong đợt · '+posts.length+' bài đã lưu. '+(scan.reason||'');}
 async function send(type,values={}){const result=await chrome.runtime.sendMessage({type,...values});if(!result?.ok)throw Error(result?.error||'Không kết nối được extension. Tải lại extension trong chrome://extensions.');return result;}
 function render(){
   const valid=new Set(posts.map(p=>p.id));for(const id of selected)if(!valid.has(id))selected.delete(id);
-  $('scanState').textContent=(scan.running?'Đang quét':'Đã dừng')+' · '+(scan.count||0)+' bài trong đợt · '+posts.length+' bài đã lưu. '+(scan.reason||'');
+  $('scanState').textContent=progress();
+  $('sourceUrl').textContent='Tab được chọn: '+($('sourceTab').selectedOptions[0]?.dataset.url||scan.source||'chưa chọn');
+  const d=scan.diagnostics;
+  $('scanDiagnostics').textContent=d?'Vòng '+(d.round||0)+' · '+(d.articleCandidates||0)+' khối bài · '+(d.postLinks||0)+' liên kết bài · '+(d.elapsedSeconds||0)+' giây · vị trí cuộn '+(d.scrollTop||0)+'/'+(d.scrollHeight||0)+(d.innerScroll?' (khung cuộn bên trong)':' (trang chính)'):'Chưa có dữ liệu chẩn đoán.';
   $('start').disabled=busy||scan.running||!$('sourceTab').value;$('stop').disabled=busy||!scan.running;
   $('clear').disabled=busy||scan.running||!posts.length;
   $('saveJson').disabled=busy||!selected.size;$('saveMedia').disabled=busy||!selected.size;
@@ -18,16 +22,16 @@ function render(){
     label.append(box,document.createTextNode(' Bài '+post.id));article.append(label);
     const text=document.createElement('pre');text.textContent=post.text||'(Không nhận diện được nội dung văn bản)';article.append(text);
     const summary=document.createElement('small');summary.textContent=post.images.length+' ảnh · '+post.videos.length+' video có URL trực tiếp'+(post.videoNeedsManual?' · Có video cần tải thủ công':'');article.append(summary);
-    const source=document.createElement('a');source.href=post.url;source.target='_blank';source.rel='noopener noreferrer';source.textContent='Mở bài gốc';article.append(source);
+    const source=document.createElement('a');source.href=post.url;source.target='_blank';source.rel='noopener noreferrer';source.textContent=post.permalinkFound===false?'Mở Page nguồn · chưa lấy được link riêng của bài':'Mở bài gốc';article.append(source);
     const copy=document.createElement('button');copy.textContent='Sao chép nội dung';copy.addEventListener('click',()=>navigator.clipboard.writeText(post.text).then(()=>status('Đã sao chép. Mở Page đích để dán nội dung và chọn media đã tải.')).catch(()=>status('Chrome không cho sao chép. Hãy chọn văn bản bài bên trên rồi nhấn Copy.')));article.append(copy);
     fragment.append(article);
   }$('browserPosts').replaceChildren(fragment);
 }
-async function refresh(){const result=await send('qv:state');posts=result.posts;scan=result.scan;render();}
+async function refresh(announce=false){const result=await send('qv:state');posts=result.posts;scan=result.scan;render();if(announce)status(progress());}
 async function task(fn){busy=true;render();try{await fn();}catch(e){status(e.message);}finally{busy=false;render();}}
-$('tabs').addEventListener('click',()=>task(async()=>{const result=await send('qv:tabs');$('sourceTab').replaceChildren();for(const tab of result.tabs){const option=document.createElement('option');option.value=tab.id;option.textContent=tab.title;option.title=tab.url;$('sourceTab').append(option);}status(result.tabs.length?'Chọn đúng tab Page nguồn rồi bấm Bắt đầu tự quét.':'Chưa thấy tab Facebook. Mở Page nguồn bằng Chrome này rồi tìm lại.');}));
+$('tabs').addEventListener('click',()=>task(async()=>{const result=await send('qv:tabs');$('sourceTab').replaceChildren();for(const tab of result.tabs){const option=document.createElement('option');option.value=tab.id;option.textContent=tab.title;option.title=tab.url;option.dataset.url=tab.url;$('sourceTab').append(option);}status(result.tabs.length?'Chọn đúng tab Page nguồn rồi bấm Bắt đầu tự quét.':'Chưa thấy tab Facebook. Mở Page nguồn bằng Chrome này rồi tìm lại.');}));
 $('sourceTab').addEventListener('change',render);
-$('start').addEventListener('click',()=>task(async()=>{await send('qv:startScan',{tabId:Number($('sourceTab').value),limit:Number($('limit').value)});await refresh();status('Đã bắt đầu. Extension chuyển sang tab Facebook để tự cuộn; quay lại đây để xem kết quả.');}));
+$('start').addEventListener('click',()=>task(async()=>{await send('qv:startScan',{tabId:Number($('sourceTab').value),limit:Number($('limit').value)});await refresh(true);}));
 $('stop').addEventListener('click',()=>task(async()=>{await send('qv:stopScan');await refresh();status('Đã gửi yêu cầu dừng.');}));
 $('selectAll').addEventListener('change',()=>{selected.clear();if($('selectAll').checked)posts.forEach(p=>selected.add(p.id));render();});
 $('clear').addEventListener('click',()=>{if(confirm('Xóa danh sách trong extension? Hãy xuất JSON và tải media cần giữ trước.'))task(async()=>{await send('qv:clear');await refresh();status('Đã xóa danh sách cục bộ; không xóa bài Facebook hoặc file đã tải.');});});
@@ -40,5 +44,5 @@ $('saveMedia').addEventListener('click',()=>task(async()=>{const result=await se
 $('openTarget').addEventListener('click',()=>{
   try{const u=new URL($('targetPage').value);if(u.protocol!=='https:'||!/(^|\.)facebook\.com$/.test(u.hostname)||u.username||u.password)throw Error();chrome.tabs.create({url:u.href});}catch{status('Nhập URL Page đích dạng https://www.facebook.com/tenpage.');}
 });
-chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes.browserPosts||changes.browserScan))refresh().catch(e=>status(e.message));});
+chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&(changes.browserPosts||changes.browserScan))refresh(!!changes.browserScan).catch(e=>status(e.message));});
 refresh().catch(e=>status(e.message));

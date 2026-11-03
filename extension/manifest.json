@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Facebook Page Migrator",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Tự cuộn quét bài trên tab Facebook đang đăng nhập, lưu nội dung và tải media trực tiếp, không cần Python.",
   "permissions": ["storage", "scripting", "downloads"],
   "host_permissions": ["https://*.facebook.com/*", "http://127.0.0.1:8765/*"],
