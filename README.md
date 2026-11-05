@@ -1,8 +1,10 @@
-# QuetVideo 0.3.0
+# QuetVideo 0.3.1
 
 Canvas tạo video theo luồng node, kiểu LibTV. Chạy được như app-mooz:
 một cửa sổ app riêng trên máy, hoặc mở bằng web trên máy của bạn.
 Từ 0.3.0, AI chạy qua tab đã đăng nhập kiểu app-mooz (MooZ Connect).
+
+**0.3.1:** sửa lỗi hộp thoại AI không bao giờ đóng được — CSS `display:flex` của `.ai-dialog-backdrop` đã thắng thuộc tính `hidden` của trình duyệt, nên nút ✕ và bấm ra ngoài đều không ẩn được hộp thoại. Đã thêm `.ai-dialog-backdrop[hidden] { display: none; }`. Lỗi này phát hiện trong lúc thử thật end-to-end trên máy ảo (ảnh thật đã về node trước khi sửa).
 
 ## Chạy như app-mooz
 
@@ -93,7 +95,7 @@ App-mooz và MooZ Connect chỉ được đọc để tham chiếu giao thức, 
 sửa, không copy code vào đây. Giao thức ghép cặp và chạy tab được viết
 lại cho QuetVideo theo đúng định dạng hai bên đã dùng.
 
-## Giới hạn rõ ràng của 0.3.0
+## Giới hạn rõ ràng của 0.3.1
 
 - Nối tab AI mới chỉ có chế độ **cục bộ** (cùng máy). Chế độ **relay**
   (app và Chrome ở hai máy khác nhau, qua mooz-relay.onrender.com)

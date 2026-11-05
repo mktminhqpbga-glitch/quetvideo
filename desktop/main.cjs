@@ -14,7 +14,7 @@ const { newToken, pairingCode } = require('./remote-protocol.cjs');
 const { ChromeHost } = require('./chrome-host.cjs');
 const { AIDispatch } = require('./ai-dispatch.cjs');
 
-const APP_VERSION = '0.3.0';
+const APP_VERSION = '0.3.1';
 const PAIRING_TTL_MS = 15 * 60 * 1000;
 
 let host = null;

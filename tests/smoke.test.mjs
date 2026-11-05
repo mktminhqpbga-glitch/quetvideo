@@ -13,7 +13,7 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('package.json co lenh start/web/test va build win/mac/linux', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
-  assert.equal(pkg.version, '0.3.0');
+  assert.equal(pkg.version, '0.3.1');
   assert.equal(pkg.main, 'desktop/main.cjs');
   assert.equal(pkg.scripts.start, 'electron .');
   assert.equal(pkg.scripts.web, 'node server.js');
