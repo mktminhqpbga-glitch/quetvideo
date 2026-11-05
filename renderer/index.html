@@ -561,6 +561,25 @@
         .dock-btn { width: 34px; height: 34px; }
         .prompt-panel { width: 94vw; }
       }
+
+      /* ============ AI QUA TAB (QuetVideo 0.3.0) ============ */
+      .ai-chip { display: inline-flex; align-items: center; gap: 6px; background: #151a26; border: 1px solid #2a3348; color: #cbd5e1; border-radius: 999px; padding: 6px 12px; font: 600 12px/1 inherit; cursor: pointer; }
+      .ai-chip.connected { border-color: #22c55e; color: #bbf7d0; }
+      .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: #64748b; flex: none; }
+      .ai-chip.connected .ai-dot { background: #22c55e; }
+      .ai-dialog-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 200; }
+      .ai-dialog { width: 520px; max-width: 92vw; max-height: 86vh; overflow: auto; background: #12151d; border: 1px solid #2a3348; border-radius: 14px; padding: 18px; color: #e2e8f0; }
+      .ai-dialog-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .ai-note { color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 8px 0; }
+      .ai-row { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+      .ai-row label { width: 90px; color: #cbd5e1; font-size: 13px; flex: none; }
+      .ai-row select { flex: 1; background: #0b0e14; color: #e2e8f0; border: 1px solid #2a3348; border-radius: 8px; padding: 8px; }
+      .ai-code-row { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; }
+      .ai-code-row code { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #0b0e14; border: 1px solid #2a3348; border-radius: 8px; padding: 8px; font-size: 11px; }
+      .ai-tabs { display: flex; flex-direction: column; gap: 6px; }
+      .ai-tab { text-align: left; background: #0b0e14; border: 1px solid #2a3348; border-radius: 8px; padding: 8px 10px; color: #e2e8f0; cursor: pointer; font-size: 13px; }
+      .ai-tab.sel { border-color: #3b82f6; }
+      .ai-x { background: none; border: none; color: #94a3b8; font-size: 16px; cursor: pointer; }
     </style>
   </head>
   <body>
@@ -578,6 +597,9 @@
         </button>
         <button class="tb-icon-btn blue" id="btn-plus-top" title="Tạo dự án mới" aria-label="Tạo mới">
           <svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button class="ai-chip" id="ai-chip" title="AI qua tab — bấm để kết nối">
+          <span class="ai-dot" id="ai-dot"></span><span id="ai-chip-label">Chưa mở tab</span>
         </button>
         <button class="member-btn" id="btn-member" title="Mở hội viên">
           <svg class="ic" viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9l4-6z"/><path d="M2 9h20M12 21L8 9l2.5-6L13 9l-1 12"/></svg>
@@ -720,6 +742,19 @@
           </div>
         </div>
       </section>
+    </div>
+
+    <div class="ai-dialog-backdrop" id="ai-dialog" hidden>
+      <div class="ai-dialog" role="dialog" aria-label="Kết nối tab AI">
+        <div class="ai-dialog-head"><strong>AI qua tab — kiểu app-mooz</strong><button class="ai-x" id="ai-close" aria-label="Đóng">✕</button></div>
+        <p class="ai-note">AI chạy qua tab đã đăng nhập trong Chrome (Muse, ChatGPT, Gemini, Grok, Flow/Veo) qua MooZ Connect. Chỉ chạy trên app QuetVideo, không chạy trên web.</p>
+        <div class="ai-row"><label>AI</label><select id="ai-provider"></select></div>
+        <div class="ai-row"><label>Mã ghép cặp</label><div class="ai-code-row"><code id="ai-code">—</code><button class="demo-btn" id="ai-copy-code" type="button">Sao chép mã</button></div></div>
+        <p class="ai-note">Dán mã này vào MooZ Connect trên Chrome (cùng máy), rồi mở tab AI và đăng nhập.</p>
+        <div class="ai-row"><button class="demo-btn primary" id="ai-list-tabs" type="button">Liệt kê tab AI</button><span id="ai-status">Chưa mở tab</span></div>
+        <div class="ai-tabs" id="ai-tabs"></div>
+        <p class="ai-note">Một nhóm chỉ dùng một AI + một tab. Mất kết nối thì job lỗi, không tự gửi lại — kiểm tra tab rồi chạy lại.</p>
+      </div>
     </div>
 
     <div class="toast-zone" id="toast-zone"></div>
@@ -917,6 +952,134 @@
     function getPromptText(n) { return n.lang === "en" ? n.promptEN : n.promptVI; }
 
     /* ================================================================
+       AI QUA TAB (QuetVideo 0.3.0) — chi co tren app Electron.
+       Tren web, window.quetvideo khong ton tai nen demo chay mo phong nhu cu.
+       Ket qua that chi co khi tab AI tra ve; khong bao gio dung anh mau thay ket qua that.
+       ================================================================ */
+    function nodeImgSrc(n) {
+      if (n.aiUrl) return n.aiUrl;
+      if (n.img >= 0 && FRAMES[n.img]) return FRAMES[n.img].src;
+      return "";
+    }
+    var aiState = { connected: false, provider: null, tabId: null };
+    function hasTabAI() { return !!(window.quetvideo && window.quetvideo.aiStatus); }
+    function aiLabel(st) {
+      if (!st) return "Chưa mở tab";
+      if (st.connected && st.tabId !== null) return "AI: " + (st.provider || "") + " · tab #" + st.tabId;
+      if (st.connected) return "Đã kết nối Chrome — chưa chọn tab";
+      return "Chưa mở tab";
+    }
+    async function refreshAiChip() {
+      var chip = document.getElementById("ai-chip");
+      var label = document.getElementById("ai-chip-label");
+      if (!chip || !label) return;
+      if (!hasTabAI()) { label.textContent = "AI tab: chỉ có trên app"; chip.classList.remove("connected"); return; }
+      try {
+        var st = await window.quetvideo.aiStatus();
+        aiState = { connected: !!st.connected, provider: st.provider, tabId: st.tabId };
+        label.textContent = aiLabel(st);
+        chip.classList.toggle("connected", aiState.connected && aiState.tabId !== null);
+        var sEl = document.getElementById("ai-status");
+        if (sEl) sEl.textContent = aiLabel(st);
+      } catch (e) { label.textContent = "Chưa mở tab"; }
+    }
+    async function runTabAI(n) {
+      // Khong tru diem demo: AI that khong dung diem mo phong.
+      n.status = "busy"; n.progress = 5; renderNode(n); drawEdges();
+      toast("Đang gửi sang tab AI — " + (aiState.provider || "") + " · chờ kết quả thật, không tự gửi lại");
+      try {
+        var result = await window.quetvideo.aiRun({
+          nodeId: n.id, prompt: getPromptText(n),
+          mediaType: n.type, size: n.ratio === "9:16" ? "9:16" : "16:9",
+        });
+        n.status = "done"; n.progress = 100;
+        if (result && result.url) { n.aiUrl = result.url; }
+        if (result && result.text) { n.text = result.text; }
+        renderNode(n); drawEdges();
+        toast(result && result.url ? "Đã nhận kết quả thật từ tab AI" : "Đã nhận văn bản từ tab AI");
+      } catch (e) {
+        n.status = "idle"; n.progress = 0; renderNode(n); drawEdges();
+        toast("Tab AI lỗi: " + (e && e.message ? e.message : e) + " — kiểm tra tab rồi chạy lại, không tự gửi lại");
+      }
+    }
+    function initTabAI() {
+      var chip = document.getElementById("ai-chip");
+      var dlg = document.getElementById("ai-dialog");
+      if (!chip || !dlg) return;
+      chip.addEventListener("click", function () {
+        if (!hasTabAI()) { toast("AI qua tab chỉ chạy trên app QuetVideo (npm start). Trên web, demo vẫn chạy mô phỏng."); return; }
+        dlg.hidden = false; refreshAiChip(); loadAiProviders(); loadAiPairingCode();
+      });
+      document.getElementById("ai-close").addEventListener("click", function () { dlg.hidden = true; });
+      dlg.addEventListener("click", function (e) { if (e.target === dlg) dlg.hidden = true; });
+      document.getElementById("ai-copy-code").addEventListener("click", async function () {
+        var code = document.getElementById("ai-code").textContent;
+        if (!code || code === "—") return;
+        try { await navigator.clipboard.writeText(code); toast("Đã sao chép mã ghép cặp"); }
+        catch (e) { toast("Chưa sao chép được — bôi đen mã rồi Ctrl+C"); }
+      });
+      document.getElementById("ai-list-tabs").addEventListener("click", async function () {
+        if (!hasTabAI()) return;
+        try {
+          var tabs = await window.quetvideo.aiTabs();
+          var box = document.getElementById("ai-tabs");
+          box.innerHTML = "";
+          if (!tabs.length) { box.innerHTML = '<p class="ai-note">Chưa thấy tab AI nào. Mở tab Muse/ChatGPT/Gemini/Grok/Flow trên Chrome rồi bấm lại.</p>'; return; }
+          tabs.forEach(function (t) {
+            var b = document.createElement("button");
+            b.className = "ai-tab" + (aiState.tabId === t.id ? " sel" : "");
+            b.type = "button";
+            b.textContent = t.provider + " — " + (t.title || t.url);
+            b.addEventListener("click", async function () {
+              var provider = document.getElementById("ai-provider").value;
+              try {
+                await window.quetvideo.aiSelect(provider, t.id);
+                toast("Đã chọn " + provider + " · tab #" + t.id + " cho nhóm này");
+                refreshAiChip();
+                box.querySelectorAll(".ai-tab").forEach(function (x) { x.classList.remove("sel"); });
+                b.classList.add("sel");
+              } catch (e) { toast(e && e.message ? e.message : String(e)); }
+            });
+            box.appendChild(b);
+          });
+          refreshAiChip();
+        } catch (e) { toast(e && e.message ? e.message : String(e)); }
+      });
+      if (hasTabAI() && window.quetvideo.onAiEvent) {
+        window.quetvideo.onAiEvent(function (ev) {
+          if (!ev) return;
+          if (ev.type === "tab-event" && ev.event && ev.event.type === "message") {
+            var msg = ev.event.message;
+            if (msg && msg.type === "WORKFLOW_AI_PROGRESS" && msg.text) toast(msg.text);
+          }
+          if (ev.type === "started" || ev.type === "done" || ev.type === "failed") refreshAiChip();
+        });
+      }
+      refreshAiChip();
+    }
+    async function loadAiProviders() {
+      if (!hasTabAI()) return;
+      try {
+        var list = await window.quetvideo.aiProviders();
+        var sel = document.getElementById("ai-provider");
+        sel.innerHTML = "";
+        list.forEach(function (p) {
+          var o = document.createElement("option");
+          o.value = p.id; o.textContent = p.name + " (" + p.types.join("/") + ")";
+          sel.appendChild(o);
+        });
+      } catch (e) {}
+    }
+    async function loadAiPairingCode() {
+      if (!hasTabAI()) return;
+      try {
+        var info = await window.quetvideo.aiPairingCode();
+        document.getElementById("ai-code").textContent = info.code;
+      } catch (e) { document.getElementById("ai-code").textContent = "Mã đã hết hạn — khởi động lại app"; }
+    }
+
+
+    /* ================================================================
        RENDER NODES
        ================================================================ */
     function toolbarHtml(n) {
@@ -985,8 +1148,8 @@
     function mediaNodeHtml(n) {
       var isVideo = n.type === "video";
       var media;
-      if (n.img >= 0 && FRAMES[n.img]) {
-        media = '<img src="' + FRAMES[n.img].src + '" alt="' + esc(FRAMES[n.img].cap) + '" draggable="false" />' +
+      if (nodeImgSrc(n)) {
+        media = '<img src="' + nodeImgSrc(n) + '" alt="' + esc(n.aiUrl ? (n.title + " — kết quả AI thật") : FRAMES[n.img].cap) + '" draggable="false" />' +
           (isVideo ? '<div class="play-badge"><span class="pb">' + IC.play + '</span></div><span class="dur-badge">' + esc(n.dur) + "</span>" : "");
       } else {
         media = '<div class="media-empty">' + IC.image + "<span>Chưa có kết quả — nhập prompt rồi bấm nút tạo</span></div>";
@@ -1532,6 +1695,7 @@
       if (n.type === "board") { toast("Đã xếp hàng tạo ảnh cho 4 cảnh"); return; }
       if (n.type === "text" || n.type === "audio") { toast("Node này không cần tạo — nội dung đã sẵn sàng"); return; }
       if (n.type === "output") { runExport(n); return; }
+      if ((n.type === "image" || n.type === "video") && hasTabAI() && aiState.connected && aiState.tabId !== null) { runTabAI(n); return; }
       var cost = genCost(n);
       if (credits < cost) { toast("Không đủ điểm demo: cần " + cost + " điểm, bạn còn " + credits + " điểm"); return; }
       setCredits(credits - cost);
@@ -1990,6 +2154,7 @@
     selectNode(sampleIds.img5);
     /* Luôn fit-view đúng 3 node mẫu khi mở — không gán cứng vị trí/zoom nữa,
        để node không bao giờ nằm ngoài khung hình ở bất kỳ kích thước màn hình nào. */
+    initTabAI();
     fitView(sampleNodes());
     updateEmptyHint();
     setTimeout(function () { toast("Bấm thử hàng nút DEMO ngay dưới thanh trên cùng — ví dụ nút “Tạo ảnh demo”"); }, 450);

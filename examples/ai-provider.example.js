@@ -84,9 +84,40 @@ export const HttpApiProvider = {
 };
 */
 
-// 4. Khung goi qua tab AI, theo cach app-mooz lam.
-//    Khong co code that o day vi can tien ich trinh duyet (MooZ Connect),
-//    tab da dang nhap va co che nhan ket qua tu chat. Chi ghi lai cac buoc:
+// 4. Goi qua tab AI — DA CO THAT tu QuetVideo 0.3.0 (desktop/ai-dispatch.cjs).
+//    TabProvider nay chi la lop boc de dung trong renderer: no goi
+//    window.quetvideo.aiRun (preload -> main -> ai-dispatch -> chrome-host ->
+//    MooZ Connect -> tab AI). Chi chay trong app Electron; tren web,
+//    window.quetvideo khong ton tai nen no bao loi ro rang thay vi gia vo chay.
+export const TabProvider = {
+  _jobs: new Map(),
+  async createJob(job) {
+    if (typeof window === 'undefined' || !window.quetvideo?.aiRun) {
+      throw new Error('AI qua tab chỉ chạy trên app QuetVideo (npm start). Trên web, demo vẫn chạy mô phỏng.');
+    }
+    const id = 'tab-' + Date.now();
+    this._jobs.set(id, job);
+    return { jobId: id };
+  },
+  async waitForResult(jobId, onProgress) {
+    const job = this._jobs.get(jobId);
+    if (!job) throw new Error('Không còn mã tác vụ tab AI; không tự gửi lại prompt.');
+    this._jobs.delete(jobId);
+    if (onProgress) onProgress(10);
+    const result = await window.quetvideo.aiRun({
+      nodeId: job.nodeId || null,
+      prompt: job.prompt,
+      mediaType: job.mediaType || 'image',
+      size: job.size || '16:9',
+      timeoutSec: job.timeoutSec || 600,
+    });
+    if (onProgress) onProgress(100);
+    return { jobId, status: 'done', result };
+  },
+};
+
+// 5. Cac buoc goi qua tab AI, theo cach app-mooz lam (ghi lai de doi chieu
+//    voi desktop/ai-dispatch.cjs):
 //    - Chon AI va tab cho ca nhom, giu cung tab qua moi buoc.
 //    - Gui prompt + anh tham chieu vao tab, cach nhau 5 giay, tuan tu.
 //    - Theo doi chat, doi ket qua dung loai va doi chieu prompt.
