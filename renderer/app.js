@@ -28,14 +28,16 @@ function render() {
   for (const w of project.wires) {
     const a = project.nodes.find((n) => n.id === w.from);
     const b = project.nodes.find((n) => n.id === w.to);
-    if (a && b) svg += `<path d="M ${a.x + 260} ${a.y + 60} C ${a.x + 400} ${a.y + 60}, ${b.x - 140} ${b.y + 60}, ${b.x} ${b.y + 60}" stroke="#888" fill="none"/>`;
+    if (a && b) svg += `<path d="M ${a.x + 280} ${a.y + 60} C ${a.x + 420} ${a.y + 60}, ${b.x - 140} ${b.y + 60}, ${b.x} ${b.y + 60}" fill="none"/>`;
   }
   svg += '</svg>';
+  const icons = { script: '📝', image: '🖼️', video: '🎬', audio: '🎵', final: '🏁' };
+  const sizes = { image: '2048×1152', video: '1280×720', script: 'Kịch bản', audio: 'Âm thanh', final: 'Thành phẩm' };
   layer.innerHTML = svg + project.nodes.map((n) => `
     <article class="node ${n.id === project.selectedId ? 'selected' : ''}" style="left:${n.x}px;top:${n.y}px" data-id="${n.id}">
-      <strong>${n.title}</strong> <small>(${n.type})</small>
-      <div class="result">${n.result || 'Chua co ket qua - nhap prompt roi bam nut Tao.'}</div>
-      <small>${n.model || ''}</small>
+      <div class="node-head"><span class="node-icon">${icons[n.type] || '⬢'}</span><strong>${n.title}</strong><span class="badge">${sizes[n.type] || n.type}</span></div>
+      <div class="result ${n.result ? 'has-result' : ''}">${n.result || '🖼️ Chưa có kết quả — nhập prompt rồi bấm nút Tạo.'}</div>
+      <div class="node-foot"><span class="badge">${(n.type === 'image' || n.type === 'video') ? 'AI tạo' : n.type}</span><span>${n.model || ''}</span></div>
     </article>`).join('');
   canvasView.applyTransform(layer);
   // Gan keo node va chon node sau moi lan ve.
@@ -101,7 +103,7 @@ loadModels().then((data) => {
   const list = document.getElementById('modelList');
   const draw = () => {
     list.innerHTML = filterModels(models, document.getElementById('modelFilter').value).map((m) => `
-      <div class="model-card"><strong>${m.name}</strong><br><small>${m.type} - Goc: ${m.base}</small><p>${m.description}</p><button data-id="${m.id}">Dung model nay</button></div>`).join('');
+      <div class="model-card"><strong>${m.name}</strong><div class="meta"><span class="badge ${m.type.toLowerCase()}">${m.type}</span><span class="badge">Gốc: ${m.base}</span></div><p>${m.description}</p><button data-id="${m.id}">Dùng model này</button></div>`).join('');
     list.querySelectorAll('button').forEach((b) => b.onclick = () => {
       const m = models.find((x) => x.id === b.dataset.id);
       const n = selectedNode();

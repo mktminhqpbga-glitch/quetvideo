@@ -1,4 +1,6 @@
-# QuetVideo 0.1.0
+# QuetVideo 0.1.1
+
+**0.1.1 · Làm đẹp theo giao diện LibTV demo:** header 1 hàng không gãy dòng, huy hiệu Song Thập Nhất và avatar PM, thẻ node có icon, huy hiệu kích thước 2048×1152 / 1280×720 và huy hiệu AI tạo, thẻ model có huy hiệu loại màu, nút pill và bóng mềm. Bố cục Grid giữ nguyên, không chồng chéo panel.
 
 Canvas tao video theo luong node, giao dien kieu LibTV, thu vien model kieu Civitai.
 Ban nay la ban demo chay duoc, viet don gian, moi phan tach rieng, khong chong cheo giao dien.

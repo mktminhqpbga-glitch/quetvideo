@@ -14,7 +14,7 @@ export function createCanvasView(canvasEl, onSelect, onDrag) {
     const rect = canvasEl.getBoundingClientRect();
     if (rect.width < 10) return;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const n of nodes) { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); maxX = Math.max(maxX, n.x + 260); maxY = Math.max(maxY, n.y + 180); }
+    for (const n of nodes) { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y); maxX = Math.max(maxX, n.x + 280); maxY = Math.max(maxY, n.y + 200); }
     const scale = Math.min(1, (rect.width - 80) / Math.max(1, maxX - minX), (rect.height - 80) / Math.max(1, maxY - minY));
     view.k = scale;
     view.x = (rect.width - (maxX - minX) * scale) / 2 - minX * scale;

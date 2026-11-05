@@ -7,15 +7,15 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<!-- HEADER: o rieng, khong chong len canvas -->
+<!-- HEADER: o rieng, khong chong len canvas. Tat ca phan tu phai deu nowrap, khong gay dong nhu ban 0.1.0 -->
 <header>
   <strong>QuetVideo</strong>
   <input id="projectName" value="Du an chua dat ten" aria-label="Ten du an">
-  <span>Canvas 1</span>
-  <div class="spacer"></div>
+  <span class="canvas-label">Canvas 1</span>
   <button id="btnShare">Chia se</button>
-  <button id="btnMember">Mo hoi vien</button>
-  <span id="credits">100 diem demo</span>
+  <button id="btnMember" class="member">◆ Mo hoi vien <span class="promo">Song Thap Nhat</span></button>
+  <span id="credits" class="credits">100 diem demo</span>
+  <span class="avatar" title="Tai khoan demo">PM</span>
 </header>
 
 <!-- DEMO-BAR: hang nut demo rieng, luon nhin thay -->
@@ -56,8 +56,8 @@
     <label>Ten node</label><input id="propTitle">
     <label>Prompt</label><textarea id="propPrompt"></textarea>
     <label>Model</label><input id="propModel">
-    <button id="btnGenerate" class="primary">Tao (demo)</button>
-    <button id="btnDelete">Xoa node</button>
+    <div class="row"><button id="btnGenerate" class="primary">Tao (demo)</button>
+    <button id="btnDelete">Xoa node</button></div>
     <p id="propResult"></p>
     <p><small>Ban demo: nut Tao chi chay mo phong, tru diem demo, khong goi API AI that.</small></p>
   </aside>
