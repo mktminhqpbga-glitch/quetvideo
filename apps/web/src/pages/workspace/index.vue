@@ -117,7 +117,7 @@
     </div>
     <floatingAgent v-model="agentVisible" :inert="workspaceStore.projectLoadingVisible" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
-    <batchVideo v-model="batchVisible" :directory="workspaceStore.project?.directory ?? ''" />
+    <batchVideo v-model="batchVisible" :directory="workspaceStore.project?.directory ?? ''" :addToCanvas="addBatchVideoToCanvas" />
     <el-dialog v-model="contactVisible" :title="contactInfo.title" width="min(360px, calc(100vw - 32px))" alignCenter appendToBody>
       <div class="contactContent">
         <q-r-code
@@ -180,6 +180,22 @@ const agentVisible = ref(true);
 const agentWidth = ref(0);
 const settingsVisible = ref(false);
 const batchVisible = ref(false);
+let batchImportCount = 0;
+async function addBatchVideoToCanvas(result: { path: string; mimeType: string; prompt: string }): Promise<string> {
+  if (activePanel.value !== "canvas" || !canvasPanelRef.value?.canvasReady) throw new Error("Hãy mở Canvas và đợi các node được tải trước khi nhập video.");
+  const context = canvasPanelRef.value.getCanvasContext();
+  if (!context) throw new Error("Canvas chưa sẵn sàng.");
+  const index = batchImportCount++;
+  const created = await context.call({ name: "addNode", args: {
+    type: "remote-videoNode",
+    position: { x: 120 + (index % 3) * 400, y: 120 + Math.floor(index / 3) * 340 },
+    label: "Video hàng loạt · " + result.prompt.slice(0, 80),
+  } });
+  const nodeId = (created as { node?: { id?: string } } | undefined)?.node?.id;
+  if (!nodeId) throw new Error("Không tạo được node video trên Canvas.");
+  await context.call({ name: "nodeTools", args: { nodeId, name: "node:setVideo", args: { path: result.path, mimeType: result.mimeType } } });
+  return nodeId;
+}
 const helpVisible = ref(false);
 const contactVisible = ref(false);
 const contactType = ref<"community" | "business">("community");

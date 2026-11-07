@@ -96,6 +96,7 @@ async function submit(context: Context, request: ImageRequest | VideoRequest, me
 
 export default {
   id: "chromeMuse",
+  icon: "",
   label: "Muse via Chrome Extension (MooZ relay)",
   version: "0.3.0",
   rules,

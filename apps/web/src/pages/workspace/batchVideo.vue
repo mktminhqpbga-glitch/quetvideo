@@ -51,9 +51,13 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Kết quả" width="225">
+        <el-table-column label="Kết quả" width="260">
           <template #default="{ row }">
-            <el-button v-if="row.path" link type="primary" @click="copyPath(row.path)">Sao chép đường dẫn video</el-button>
+            <template v-if="row.path">
+              <el-button link type="primary" @click="copyPath(row.path)">Sao chép</el-button>
+              <el-button v-if="!row.canvasNodeId" link type="primary" @click="attachToCanvas(row)">Đưa vào Canvas</el-button>
+              <el-tag v-else type="success" size="small">Đã đưa vào Canvas</el-tag>
+            </template>
             <span v-else class="errorCell" :title="row.error || ''">{{ row.error || '—' }}</span>
           </template>
         </el-table-column>
@@ -68,7 +72,7 @@ import { onUnmounted, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { createBatchJobs, parseBatchPrompts, parseDevices, type BatchVideoJob, type BatchStatus } from "./batchVideoModel";
 
-const props = defineProps<{ directory: string }>();
+const props = defineProps<{ directory: string; addToCanvas?: (result: { path: string; mimeType: string; prompt: string }) => Promise<string> }>();
 const visible = defineModel<boolean>({ default: false });
 const promptText = ref("");
 const deviceText = ref("chrome-main");
@@ -258,6 +262,15 @@ async function checkExisting(resume: boolean) {
 
 function clearFinished() {
   jobs.value = jobs.value.filter(job => !["done", "failed"].includes(job.status));
+}
+async function attachToCanvas(job: BatchVideoJob) {
+  if (!job.path || !job.mimeType || !props.addToCanvas) return;
+  try {
+    const nodeId = await props.addToCanvas({ path: job.path, mimeType: job.mimeType, prompt: job.prompt });
+    job.canvasNodeId = nodeId;
+    persist();
+    ElMessage.success("Đã đưa video vào Canvas dưới dạng node Video");
+  } catch (error) { ElMessage.error((error as Error).message); }
 }
 async function copyPath(path: string) {
   try {

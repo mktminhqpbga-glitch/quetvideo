@@ -13,6 +13,7 @@ export type BatchVideoJob = {
   deviceId?: string;
   path?: string;
   mimeType?: string;
+  canvasNodeId?: string;
   error?: string;
 };
 

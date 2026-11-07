@@ -20,10 +20,17 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Build the ToonFlow web app
         run: bun run --cwd apps/web build
-      - name: Typecheck the web app
-        run: bun run --cwd apps/web typecheck
       - name: Build all node and tool plugins
         run: bun run dev:plugins
+      - name: Typecheck web app
+        run: |
+          # The Electrobun desktop SDK is generated on developer machines and
+          # not checked into Git. Stub only its config type for web CI.
+          mkdir -p .hutch/devkit/api/config
+          printf 'export type ElectrobunConfig = any;\n' > .hutch/devkit/api/config/ElectrobunConfig.d.ts
+          bun run --cwd apps/web typecheck
+      - name: Batch composer tests
+        run: bun test apps/web/src/pages/workspace/batchVideoModel.test.ts
       - name: Confirm video generation node is built
         run: |
           test -d build/nodes
