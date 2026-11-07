@@ -1,0 +1,58 @@
+name: Import ToonFlow and preserve Chrome bridge
+
+on:
+  push:
+    branches:
+      - feature/toonflowChrome
+    paths:
+      - .github/workflows/importToonflow.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+      - name: Fetch upstream ToonFlow
+        run: git clone --depth 1 --branch master https://github.com/HBAI-Ltd/Toonflow-app.git /tmp/toonflow-upstream
+      - name: Replace old application and integrate Muse bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/toonflow-custom
+          cp -a extensions services render.yaml /tmp/toonflow-custom/
+          cp -a packages/providers/src/media/chromeMuse.ts /tmp/toonflow-custom/chromeMuse.ts
+          cp -a .github/workflows/importToonflow.yml /tmp/toonflow-custom/importToonflow.yml
+          git rm -r -q --ignore-unmatch .
+          git clean -fdx -q
+          rsync -a --exclude .git /tmp/toonflow-upstream/ ./
+          cp -a /tmp/toonflow-custom/extensions .
+          cp -a /tmp/toonflow-custom/services .
+          cp -a /tmp/toonflow-custom/render.yaml .
+          cp -a /tmp/toonflow-custom/chromeMuse.ts packages/providers/src/media/chromeMuse.ts
+          rm -rf .github/workflows
+          mkdir -p .github/workflows
+          cp -a /tmp/toonflow-custom/importToonflow.yml .github/workflows/importToonflow.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          app = Path("apps/server/src/app.ts")
+          body = app.read_text()
+          needle = 'const autoInstallProviders = ["apiMart.ts", "metaso.ts", "compshare.ts"];'
+          assert needle in body, "Upstream autoInstallProviders changed"
+          app.write_text(body.replace(needle, 'const autoInstallProviders = ["apiMart.ts", "metaso.ts", "compshare.ts", "chromeMuse.ts"];'))
+          providers = Path("packages/providers/index.ts")
+          body = providers.read_text()
+          needle = 'import compshare from "./src/media/compshare";'
+          assert needle in body, "Upstream provider imports changed"
+          body = body.replace(needle, needle + '\nimport chromeMuse from "./src/media/chromeMuse";')
+          needle = 'export const mediaProviders = [apiMart, metaso, compshare] as const;'
+          assert needle in body, "Upstream mediaProviders changed"
+          providers.write_text(body.replace(needle, 'export const mediaProviders = [apiMart, metaso, compshare, chromeMuse] as const;'))
+          PY
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Import upstream ToonFlow and integrate Chrome Muse bridge"
+          git push origin HEAD:feature/toonflowChrome
