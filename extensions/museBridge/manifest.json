@@ -20,5 +20,6 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "ToonFlow Muse Bridge"
-  }
+  },
+  "minimum_chrome_version": "116"
 }
