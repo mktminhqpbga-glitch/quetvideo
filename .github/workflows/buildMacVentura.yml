@@ -73,7 +73,7 @@ jobs:
             (async()=>{
               const root=await fetch("http://127.0.0.1:"+port+"/");
               if(root.status!==200 || !(await root.text()).includes("id=\"app\"")) throw Error("Web UI unavailable");
-              const res=await fetch("http://127.0.0.1:"+port+"/api/multiTenant/hostSession",{method:"POST",headers:{"x-toonflow-host-token":token,"x-toonflow-workspace":"1"}});
+              const res=await fetch("http://127.0.0.1:"+port+"/api/multiTenant/hostSession",{method:"POST",headers:{"x-toonflow-host-token":token,"x-toonflow-workspace":"1","origin":"http://127.0.0.1:"+port}});
               if(!res.ok || !res.headers.get("set-cookie")) throw Error("Local host auth failed: "+res.status);
               console.log("Ventura backend+host session smoke test OK");
             })().catch(e=>{console.error(e.message);process.exitCode=1});
