@@ -1,0 +1,51 @@
+{
+  "name": "toonflow-studio-vn-ventura",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ToonFlow Studio VN for macOS 13 Ventura (Intel)",
+  "main": "main.cjs",
+  "license": "MIT",
+  "scripts": {
+    "dist": "electron-builder --mac dmg --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "38.0.0",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "vn.toonflow.studio.ventura",
+    "productName": "ToonFlow Studio VN Ventura",
+    "artifactName": "ToonFlow-Studio-VN-Ventura-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "../../build/ventura/out",
+      "buildResources": "."
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime",
+        "to": "toonflow"
+      }
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.video",
+      "icon": "icon.icns",
+      "target": "dmg",
+      "minimumSystemVersion": "13.0",
+      "identity": null,
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "title": "ToonFlow Studio VN Ventura",
+      "window": {
+        "width": 630,
+        "height": 450
+      }
+    }
+  }
+}

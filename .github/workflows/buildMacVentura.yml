@@ -1,0 +1,117 @@
+name: ToonFlow Ventura Intel DMG
+on:
+  push:
+    branches: [feature/macVenturaElectron]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 100
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Verify Intel runner
+        run: |
+          test "$(uname -m)" = x86_64
+          xcrun --find clang++
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build Web, Backend and all Canvas plugins
+        run: bun run build:server
+      - name: Build Ventura-specific server entry
+        run: |
+          bun build apps/server/src/venturaHost.ts --target=bun --minify \
+            --external @silvia-odwyer/photon-node \
+            --external @firecrawl/anydoc \
+            --external @firecrawl/anydoc-wasm \
+            --external just-bash \
+            --outdir build/server
+          test -s build/server/venturaHost.js
+      - name: Stage complete standalone runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packaging/ventura/runtime/build
+          cp "$(command -v bun)" packaging/ventura/runtime/bun
+          chmod +x packaging/ventura/runtime/bun
+          for part in web server nodes tools ext mcp providers skills; do
+            test -d "build/$part"
+            cp -R "build/$part" "packaging/ventura/runtime/build/$part"
+          done
+          iconutil -c icns packages/assets/logo.iconset -o packaging/ventura/icon.icns
+          du -sh packaging/ventura/runtime
+      - name: Check local Bun backend starts from bundled resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOG="$RUNNER_TEMP/ventura-server.log"
+          TOONFLOW_VENTURA_ROOT="$PWD/packaging/ventura/runtime" \
+          TOONFLOW_DATA_DIR="$RUNNER_TEMP/ventura-data" \
+            packaging/ventura/runtime/bun packaging/ventura/runtime/build/server/venturaHost.js > "$LOG" 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 75); do
+            if grep -q '^TOONFLOW_VENTURA_READY:' "$LOG"; then ready=1; break; fi
+            if ! kill -0 "$PID" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [[ "$ready" != 1 ]]; then
+            sed -E 's/("token":")[^"]+/\1[REDACTED]/g' "$LOG" | tail -60
+            exit 1
+          fi
+          TOONFLOW_TEST_LOG="$LOG" node -e '
+            const fs=require("fs");
+            const l=fs.readFileSync(process.env.TOONFLOW_TEST_LOG,"utf8").split("\n").find(s=>s.startsWith("TOONFLOW_VENTURA_READY:"));
+            const {port,token}=JSON.parse(l.split("TOONFLOW_VENTURA_READY:")[1]);
+            (async()=>{
+              const root=await fetch("http://127.0.0.1:"+port+"/");
+              if(root.status!==200 || !(await root.text()).includes("id=\"app\"")) throw Error("Web UI unavailable");
+              const res=await fetch("http://127.0.0.1:"+port+"/api/multiTenant/hostSession",{method:"POST",headers:{"x-toonflow-host-token":token,"x-toonflow-workspace":"1"}});
+              if(!res.ok || !res.headers.get("set-cookie")) throw Error("Local host auth failed: "+res.status);
+              console.log("Ventura backend+host session smoke test OK");
+            })().catch(e=>{console.error(e.message);process.exitCode=1});
+          '
+      - name: Download Electron and macOS DMG builder
+        run: npm install --prefix packaging/ventura --no-audit --no-fund
+      - name: Package Ventura x64 DMG
+        run: npm run --prefix packaging/ventura dist
+      - name: Verify macOS 13 and Intel architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="$(find build/ventura/out -maxdepth 3 -type d -name '*.app' | head -1)"
+          test -n "$APP"
+          INFO="$APP/Contents/Info.plist"
+          MIN="$(/usr/libexec/PlistBuddy -c 'Print LSMinimumSystemVersion' "$INFO")"
+          echo "macOS minimum: $MIN"
+          test "$MIN" = "13.0"
+          EXEC="$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$INFO")"
+          file "$APP/Contents/MacOS/$EXEC" | grep -q x86_64
+          DMG="$(find build/ventura/out -maxdepth 1 -name '*.dmg' -type f | head -1)"
+          test -s "$DMG"
+          hdiutil verify "$DMG"
+          shasum -a 256 "$DMG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ToonFlow-Ventura-Intel-DMG
+          path: build/ventura/out/*.dmg
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Release Ventura preview
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "toonflow-ventura-ci-${{ github.run_number }}" build/ventura/out/*.dmg \
+            --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --title "ToonFlow Studio VN - macOS 13 Ventura Intel (preview ${{ github.run_number }})" \
+            --notes "Experimental Ventura Intel x64 app using Electron 38 and bundled Bun+ToonFlow. GitHub CI validates build and host session, but real Ventura installation remains unverified. The original Electrobun native functions are not fully available. Unsigned; approve in Privacy and Security. Muse requires Chrome extension and Render." \
+            --prerelease
