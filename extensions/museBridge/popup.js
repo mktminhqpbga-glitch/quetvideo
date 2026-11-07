@@ -1,5 +1,5 @@
-const keys = ["relayUrl", "pairingCode", "deviceId", "tabId", "promptSelector", "buttonSelector", "imageSelector"];
-const defaults = { relayUrl: "https://mooz-relay.onrender.com", deviceId: "chrome-main", promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img" };
+const keys = ["relayUrl", "pairingCode", "deviceId", "tabId", "promptSelector", "buttonSelector", "imageSelector", "videoSelector"];
+const defaults = { relayUrl: "https://mooz-relay.onrender.com", deviceId: "chrome-main", promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img", videoSelector: "video" };
 async function load() {
   const config = { ...defaults, ...await chrome.storage.local.get([...keys, "bridgeState", "bridgeMessage"]) };
   for (const tab of await chrome.tabs.query({})) {

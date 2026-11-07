@@ -1,0 +1,31 @@
+name: Standalone UI and Muse Extension build check
+
+on:
+  push:
+    branches: [feature/desktopNoAdsMuseDownload]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  buildWeb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Build all development plugins including image and video nodes
+        run: bun run dev:plugins
+      - name: Build desktop web UI with embedded extension download
+        run: bun run --cwd apps/web build
+      - name: Verify node assets exist
+        run: |
+          test -d build/nodes
+          test -f extensions/museBridge/manifest.json
+          find build/nodes -type f | head -25

@@ -48,6 +48,7 @@ import http from "@/lib/http";
 import { isMobile } from "@/lib/platform";
 import {
   IconSettings,
+  IconBrandChrome,
   IconPhotoVideo,
   IconBuildingStore,
   IconInfoCircle,
@@ -72,6 +73,7 @@ const allSettingsPanels = [
     component: defineAsyncComponent(() => import("./panels/languageModel/index.vue")),
   },
   { id: "mediaModel", label: "媒体模型", icon: IconPhotoVideo, component: defineAsyncComponent(() => import("./panels/mediaModel/index.vue")) },
+  { id: "chromeMuse", label: "Chrome & Muse", icon: IconBrandChrome, component: defineAsyncComponent(() => import("./panels/chromeMuse/index.vue")) },
   {
     id: "pluginMarket",
     label: "插件市场",
@@ -97,6 +99,9 @@ const allSettingsPanels = [
 ];
 const publicAccountPanel = { ...allSettingsPanels[0]!, get label() { return translate("账号"); } };
 const settingsPanels = computed(() => allSettingsPanels.filter(item => {
+  // Keep hosted authentication intact. Local standalone builds do not need cloud account/billing UI.
+  if (!publicWeb.value && ["account", "multiTenant"].includes(item.id)) return false;
+  if (publicWeb.value && item.id === "chromeMuse") return false;
   if (publicWeb.value && currentUser.value?.role === "user") return ["account", "general", "about"].includes(item.id);
   if (publicWeb.value && ["multiTenant", "deviceLink", "network", "mcp", "developer", "pluginMarket"].includes(item.id)) return false;
   return !multiTenantEnabled.value || !["languageModel", "mediaModel", "developer"].includes(item.id);
