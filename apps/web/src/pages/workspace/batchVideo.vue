@@ -55,7 +55,7 @@
           <template #default="{ row }">
             <template v-if="row.path">
               <el-button link type="primary" @click="copyPath(row.path)">Sao chép</el-button>
-              <el-button v-if="!row.canvasNodeId" link type="primary" @click="attachToCanvas(row)">Đưa vào Canvas</el-button>
+              <el-button v-if="!row.canvasNodeId" link type="primary" @click="attachToCanvas(row as BatchVideoJob)">Đưa vào Canvas</el-button>
               <el-tag v-else type="success" size="small">Đã đưa vào Canvas</el-tag>
             </template>
             <span v-else class="errorCell" :title="row.error || ''">{{ row.error || '—' }}</span>
