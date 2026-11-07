@@ -1,0 +1,30 @@
+name: ToonFlow batch video and studio UI
+
+on:
+  push:
+    branches: [feature/toonflowBatchVideo]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  webAndPlugins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - name: Build the ToonFlow web app
+        run: bun run --cwd apps/web build
+      - name: Typecheck the web app
+        run: bun run --cwd apps/web typecheck
+      - name: Build all node and tool plugins
+        run: bun run dev:plugins
+      - name: Confirm video generation node is built
+        run: |
+          test -d build/nodes
+          find build/nodes -type f | head -40
