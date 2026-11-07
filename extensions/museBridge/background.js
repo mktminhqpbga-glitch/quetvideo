@@ -1,4 +1,4 @@
-const defaults = { relayUrl: "", token: "", deviceId: "chrome-main", tabId: 0, promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img" };
+const defaults = { relayUrl: "https://mooz-relay.onrender.com", pairingCode: "", resumeToken: "", deviceId: "chrome-main", tabId: 0, promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img" };
 let ws;
 let heartbeat;
 let reconnect;
@@ -7,7 +7,8 @@ let executing = false;
 function relayAddress(value) {
   const url = new URL(value);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) throw Error("Relay must use HTTPS");
-  return url.href.replace(/\/$/, "").replace(/^http/, "ws") + "/ws";
+  if (url.username || url.password || url.search || url.hash || (url.pathname !== "/" && url.pathname !== "")) throw Error("Use the base HTTPS relay URL only");
+  return url.origin.replace(/^http/, "ws") + "/toonflow";
 }
 
 async function settings() { return { ...defaults, ...await chrome.storage.local.get(Object.keys(defaults)) }; }
@@ -23,19 +24,21 @@ function disconnect() {
 async function connect() {
   disconnect();
   const cfg = await settings();
-  if (!cfg.relayUrl || !cfg.token || !cfg.deviceId) { notify("disconnected", "Configure relay URL, token and device ID"); return; }
+  if (!cfg.relayUrl || !cfg.deviceId || (!cfg.pairingCode && !cfg.resumeToken)) { notify("disconnected", "Enter one-time pairing code from ToonFlow relay; never enter RELAY_ADMIN_KEY here"); return; }
   let url;
   try { url = relayAddress(cfg.relayUrl); } catch (e) { notify("error", e.message); return; }
   const socket = new WebSocket(url);
   ws = socket;
   notify("connecting");
   socket.onopen = () => {
-    socket.send(JSON.stringify({ type: "hello", role: "extension", token: cfg.token, deviceId: cfg.deviceId }));
+    socket.send(JSON.stringify({ type: "hello", role: "extension", pairingCode: cfg.pairingCode || undefined, resumeToken: cfg.resumeToken || undefined, deviceId: cfg.deviceId }));
   };
   socket.onmessage = async event => {
     let msg;
     try { msg = JSON.parse(event.data); } catch { return; }
     if (msg.type === "ready") {
+      if (typeof msg.resumeToken !== "string" || !/^[a-f0-9]{64}$/.test(msg.resumeToken)) { socket.close(1008, "Invalid relay response"); return; }
+      await chrome.storage.local.set({ resumeToken: msg.resumeToken, pairingCode: "" });
       notify("connected");
       heartbeat = setInterval(() => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "ping" })); }, 20000);
       return;
@@ -76,11 +79,16 @@ async function connect() {
     } finally { executing = false; }
   };
   socket.onerror = () => notify("error", "WebSocket error");
-  socket.onclose = () => {
+  socket.onclose = event => {
     clearInterval(heartbeat);
     if (ws !== socket) return;
     ws = null;
-    notify("disconnected");
+    if (event.code === 1008) {
+      void chrome.storage.local.set({ resumeToken: "", pairingCode: "" });
+      notify("pairing-required", "Pairing expired or invalid. Create a new pairing code using RELAY_ADMIN_KEY on your own machine.");
+      return;
+    }
+    notify("disconnected", "Connection interrupted. Attempting to reconnect without resending any prompt.");
     reconnect = setTimeout(connect, 5000);
   };
 }

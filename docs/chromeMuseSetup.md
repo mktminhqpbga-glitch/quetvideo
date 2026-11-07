@@ -1,65 +1,50 @@
-# Kết nối ToonFlow với Muse qua Chrome Extension + Render
+# ToonFlow + existing MooZ Render relay
 
-Tài liệu này dành cho bản `main` của [quetvideo](https://github.com/mktminhqpbga-glitch/quetvideo) đã tích hợp ToonFlow. Bản tích hợp là **MVP thử nghiệm**; chưa được xác nhận tạo ảnh thực tế trên tài khoản Muse.
+Target: `https://mooz-relay.onrender.com` (repository `mktminhqpbga-glitch/app-mooz`). This is NOT the separate `toonflow-chrome-relay` service.
 
-## A. Triển khai Render (làm trên giao diện Render)
+## Security: one RELAY_ADMIN_KEY, no admin key in Chrome
 
-1. Vào https://dashboard.render.com/ và đăng nhập.
-2. Chọn **New > Blueprint**.
-3. Kết nối repository `mktminhqpbga-glitch/quetvideo`, chọn nhánh `main`.
-4. Render sẽ đọc `render.yaml` ở thư mục gốc và tạo dịch vụ `toonflow-chrome-relay`, runtime Node, gói Free (nếu tài khoản và khu vực hỗ trợ), vùng Singapore.
-5. Xem lại các dịch vụ và chi phí trên trang xác nhận rồi chọn **Deploy Blueprint**.
-6. Chờ service báo **Live**. Sao chép **URL HTTPS thực tế** của service, không phỏng đoán URL.
-7. Mở Environment của service, xem và sao chép giá trị bí mật `RELAY_TOKEN` (cấu hình Blueprint yêu cầu Render tự sinh). Không đăng token lên GitHub hoặc gửi qua chat công khai.
-8. Truy cập `https://<domain-thực-tế>/health`; nếu chạy tốt, kết quả là `{"ok":true}`.
+The existing Render environment variable `RELAY_ADMIN_KEY` is **reused** to authenticate the ToonFlow backend when it submits and polls image jobs. The MooZ `/remote` protocol is left unchanged. Chrome uses a **short-lived pairingCode** and, after successful pairing, an automatically rotated resumeToken. Never paste `RELAY_ADMIN_KEY` into Chrome, share it in messages, or commit it to GitHub.
 
-Lưu ý: máy chủ relay không lưu bền vững. Nếu Render khởi động lại, tác vụ đang thực hiện và trạng thái trong RAM sẽ mất. Khi mất kết nối hãy kiểm tra trang Muse trước khi chạy lại; không tự gửi lặp.
+## 1. Enable the gateway on the existing Render service
 
-## B. Cài Chrome Extension trên máy chính
+The relay code lives in `mktminhqpbga-glitch/app-mooz/relay-server`. After merging the MooZ gateway change, deploy the new `app-mooz` commit using **Render → mooz-relay → Manual Deploy → Deploy latest commit**. Auto Deploy is disabled in that repo. **Manual deployment restarts the existing relay** and clears MooZ's in-memory rooms, so reconnect any existing MooZ/Workflow Connect sessions afterward. Do not change the existing environment variable or create another web service.
 
-1. Trên trang GitHub repository, chọn **Code > Download ZIP**, sau đó giải nén.
-2. Trên Chrome mở `chrome://extensions`, bật **Developer mode**.
-3. Chọn **Load unpacked**, trỏ vào thư mục `extensions/museBridge` (thư mục chứa `manifest.json`).
-4. Mở Muse trong một tab Chrome, đăng nhập bằng tài khoản của chính bạn.
-5. Bấm biểu tượng **ToonFlow Muse Bridge**:
-   - Render relay URL: URL HTTPS ở bước A (không thêm `/ws`).
-   - Relay token: chính xác `RELAY_TOKEN`.
-   - Device ID: `chrome-main`.
-   - Muse tab: chọn đúng tab Muse đang đăng nhập.
-6. CSS selectors mặc định chỉ là **giá trị ví dụ**. Bạn phải kiểm tra giao diện Muse thật và điền đúng selector cho ô prompt, nút Generate, và ảnh đầu ra mới tạo.
-7. Bấm **Save & connect**. Cấp quyền Chrome truy cập **chỉ trang đã chọn** khi được hỏi, rồi mở lại popup để kiểm tra kết nối.
+Expected public check: `https://mooz-relay.onrender.com/health` still shows `mooz-outbound-relay`. `/toonflow/devices` requires admin authentication.
 
-## C. Chạy ToonFlow trên máy cục bộ
+## 2. Get a one-time pairing code on your own computer
 
-Trong terminal trên máy đã cài Git và Bun (xem yêu cầu theo README của upstream):
+On macOS/Linux terminal (with your own admin key available as an environment variable), generate a code for `chrome-main`:
 
-```bash
-git clone https://github.com/mktminhqpbga-glitch/quetvideo.git
-cd quetvideo
-bun install
-bun run dev
+```sh
+curl --fail-with-body -sS -X POST "https://mooz-relay.onrender.com/toonflow/pairings" \
+  -H "Authorization: Bearer $RELAY_ADMIN_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"deviceId":"chrome-main"}'
 ```
 
-Có thể dùng `bun run dev:desktop` cho chế độ phát triển desktop, tùy nền tảng và các phụ thuộc đã cài.
+The response contains `pairingCode` and `expiresAt` (10-minute invitation). Do **not** send the key here. Use the one-time `pairingCode` in Chrome, not the admin key. If your shell does not already have `RELAY_ADMIN_KEY`, enter it privately with a hidden-input prompt or a local secret manager first. Remove the variable when done.
 
-Trong giao diện ToonFlow, vào phần media provider, tìm **Muse via Chrome Extension (Render)**, nhập:
-- `relayUrl`: URL HTTPS của Render;
-- `relayToken`: cùng token với Chrome Extension;
-- `deviceId`: `chrome-main`.
+## 3. Connect Chrome (local, other PC, or VM)
 
-Chọn **Muse / Chrome** trong node tạo ảnh, nhập prompt, chạy thử một lần. Nếu không có ảnh, kiểm tra popup Extension, logs Render và các CSS selector. Với ảnh ở URL yêu cầu cookie trên trình duyệt, ToonFlow server có thể không tải được URL đó; trường hợp này cần phát triển thêm bước chuyển binary qua Extension.
+1. Download the `quetvideo` repo ZIP, extract it, and open `chrome://extensions`.
+2. Turn on **Developer mode** and choose **Load unpacked** → `extensions/museBridge`.
+3. Sign in to Muse yourself in a normal Chrome tab.
+4. In the extension popup set relay URL `https://mooz-relay.onrender.com`, the one-time pairing code, a unique deviceId such as `chrome-main` or `chrome-vm-01`, and select the Muse tab. The extension will request permission for the selected tab and relay origin.
+5. Configure the prompt, Generate button, and result image CSS selectors according to the *actual Muse UI*. The defaults are examples and are not verified against Muse.
+6. Press **Save & connect**. On successful pairing the extension stores a separate resume token, clears the one-time code, and can reconnect after transient network drops. Render restart loses pairing sessions; create a new code if it reports `pairing-required`.
 
-## D. Chrome trên máy khác hoặc máy ảo
+## 4. Configure ToonFlow
 
-Cài Chrome và Extension từ cùng thư mục, đăng nhập Muse thủ công, dùng **cùng URL relay + token** nhưng đặt **Device ID khác nhau** (`chrome-vm-01`, `chrome-remote-01`...). Trong ToonFlow thay `deviceId` sang đúng máy cần chạy. Chrome trên VM phải hoạt động trong phiên desktop có hỗ trợ chạy Extension, không phải Chromium headless đơn thuần.
+In the ToonFlow desktop/web application, select the built-in media provider **Muse via Chrome Extension (Render)** and enter:
+- **MooZ relay URL**: `https://mooz-relay.onrender.com`
+- **MooZ RELAY_ADMIN_KEY**: your existing Render secret, entered only in ToonFlow's server-side provider settings
+- **Chrome device ID**: `chrome-main` (match the Extension)
 
-Chỉ cần kết nối **đi ra** từ Chrome tới HTTPS/WSS Render; không cần mở cổng nhận kết nối vào máy ảo.
+In an image-generation node select `Muse / Chrome` and send a short prompt. If a job fails, inspect Muse before retrying; the relay never resubmits uncertain jobs.
 
-## E. Giới hạn và bảo mật
+## Limitations
 
-- Đây là kết nối qua **giao diện trang web**, không dùng API chính thức. Không hỗ trợ vượt CAPTCHA, đăng nhập tự động hoặc vượt giới hạn dịch vụ.
-- Không gửi Render token vào issue, ảnh chụp công khai hoặc commit.
-- Relay hiện dùng token chia sẻ cho một nhóm thiết bị đáng tin cậy. Chưa có phân quyền nhiều người dùng.
-- Extension hiện hỗ trợ tạo ảnh từ prompt (text-to-image), không hỗ trợ tham chiếu ảnh hoặc bảo đảm mọi tham số tỷ lệ/chất lượng được áp dụng trên Muse.
-- CSS selectors và kết quả ảnh cần kiểm thử, tinh chỉnh theo phiên bản giao diện Muse.
-- Chrome Extension cần Chrome 116 trở lên để duy trì WebSocket trong service worker; những tác vụ dài vẫn cần kiểm thử độ ổn định.
+This is an experimental text-to-image integration, not an official Muse API. No login, CAPTCHA, quota or access restrictions are bypassed. Image-generation output and prompts passing over `/toonflow` are **not end-to-end encrypted** (unlike MooZ `/remote`); Render temporarily processes the messages in memory. The relay has no persistent storage and a redeploy drops jobs and pairing sessions. A signed-in browser and calibrated selectors are required. Local/VM/browser end-to-end tests are still necessary.
+
+The obsolete dedicated ToonFlow relay code has been removed from `quetvideo` to avoid deploying or configuring the wrong service.

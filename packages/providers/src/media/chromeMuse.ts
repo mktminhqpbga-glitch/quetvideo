@@ -1,6 +1,6 @@
 const rules = [
-  { type: "input", field: "relayUrl" as const, title: "Render relay URL", value: "", props: { placeholder: "https://your-relay.onrender.com" } },
-  { type: "input", field: "relayToken" as const, title: "Relay token", value: "", props: { type: "password", showPassword: true, autocomplete: "off" } },
+  { type: "input", field: "relayUrl" as const, title: "MooZ relay URL", value: "https://mooz-relay.onrender.com", props: { placeholder: "https://your-relay.onrender.com" } },
+  { type: "input", field: "relayAdminKey" as const, title: "MooZ RELAY_ADMIN_KEY (ToonFlow backend only)", value: "", props: { type: "password", showPassword: true, autocomplete: "off" } },
   { type: "input", field: "deviceId" as const, title: "Chrome device ID", value: "chrome-main", props: { placeholder: "chrome-main" } },
 ] as const;
 
@@ -29,7 +29,7 @@ async function readResponse(response: Response) {
 export default {
   id: "chromeMuse",
   label: "Muse via Chrome Extension (Render)",
-  version: "0.1.0",
+  version: "0.2.0",
   rules,
   models: [
     { id: "museChrome", label: "Muse / Chrome", type: "image", mode: ["text"], imageSizes: ["1K", "2K"], imageRatios: ["1:1", "16:9", "9:16", "4:3", "3:4"] },
@@ -37,12 +37,12 @@ export default {
   async generateImage(request: ImageRequest): Promise<MediaAsset[]> {
     if (request.images?.length || request.mask) throw new Error("This adapter currently supports text-to-image only");
     const relayUrl = baseUrl(this.config.relayUrl || "");
-    const relayToken = this.config.relayToken?.trim();
+    const relayAdminKey = this.config.relayAdminKey?.trim();
     const deviceId = this.config.deviceId?.trim();
-    if (!relayToken || !deviceId) throw new Error("Configure relayToken and deviceId in Muse provider settings");
-    const headers = { "Authorization": "Bearer " + relayToken, "Content-Type": "application/json" };
+    if (!relayAdminKey || !deviceId) throw new Error("Configure RELAY_ADMIN_KEY and deviceId in Muse provider settings");
+    const headers = { "Authorization": "Bearer " + relayAdminKey, "Content-Type": "application/json" };
     const signal = AbortSignal.any([AbortSignal.timeout(10 * 60_000), ...(this.signal ? [this.signal] : [])]);
-    const submit = await this.tool.fetch(relayUrl + "/api/jobs", {
+    const submit = await this.tool.fetch(relayUrl + "/toonflow/jobs", {
       method: "POST", headers, signal,
       body: JSON.stringify({ deviceId, prompt: request.prompt, ratio: request.ratio, size: request.size, quality: request.quality }),
     });
@@ -50,7 +50,7 @@ export default {
     if (!jobId) throw new Error("Relay did not return a job ID");
     while (true) {
       signal.throwIfAborted();
-      const statusResponse = await this.tool.fetch(relayUrl + "/api/jobs/" + encodeURIComponent(jobId), { headers, signal });
+      const statusResponse = await this.tool.fetch(relayUrl + "/toonflow/jobs/" + encodeURIComponent(jobId), { headers, signal });
       const status = await readResponse(statusResponse) as JobStatus;
       if (status.state === "error") throw new Error(status.error || "Muse task failed");
       if (status.state === "done") {
