@@ -54,6 +54,11 @@
                 <component :is="selectedTool === 'move' ? IconPointer : IconHandStop" :size="18" aria-hidden="true" />
               </el-button>
             </el-tooltip>
+            <el-tooltip content="Video hàng loạt" placement="top" :showArrow="false">
+              <el-button class="toolButton" text aria-label="Video hàng loạt" @click="batchVisible = true">
+                <icon-movie :size="18" aria-hidden="true" />
+              </el-button>
+            </el-tooltip>
             <el-tooltip content="搜索节点" placement="top" :showArrow="false" :hideAfter="0" :enterable="false" :triggerKeys="[]">
               <el-button class="toolButton" text :disabled="!canvasPanelRef?.canvasReady || settingsVisible" aria-label="搜索节点" @click="canvasPanelRef?.openNodeSearch()">
                 <icon-search :size="18" aria-hidden="true" />
@@ -112,6 +117,7 @@
     </div>
     <floatingAgent v-model="agentVisible" :inert="workspaceStore.projectLoadingVisible" @resize="agentWidth = $event" />
     <settings v-model="settingsVisible" />
+    <batchVideo v-model="batchVisible" :directory="workspaceStore.project?.directory ?? ''" />
     <el-dialog v-model="contactVisible" :title="contactInfo.title" width="min(360px, calc(100vw - 32px))" alignCenter appendToBody>
       <div class="contactContent">
         <q-r-code
@@ -134,10 +140,11 @@ import { translate } from "@toonflow/i18n/vue";
 import { computed, defineAsyncComponent, nextTick, onMounted, onScopeDispose, provide, ref, shallowRef, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
 import axios from "axios";
-import { IconVector, IconFileText, IconPointer, IconHandStop, IconPlus, IconSearch, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase } from "@tabler/icons-vue";
+import { IconVector, IconFileText, IconPointer, IconHandStop, IconPlus, IconSearch, IconHelp, IconBook, IconBug, IconBrandWechat, IconBriefcase, IconMovie } from "@tabler/icons-vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { QRCode } from "tdesign-vue-next";
 import settings from "@/components/settings/index.vue";
+import batchVideo from "./batchVideo.vue";
 import { useWorkspaceStore } from "@/stores/workspace";
 import { registerWorkspaceControl, waitForControlValue } from "@/lib/mcpControl";
 import anonymousData from "@/lib/anonymousData";
@@ -172,6 +179,7 @@ const panelOptions = [
 const agentVisible = ref(true);
 const agentWidth = ref(0);
 const settingsVisible = ref(false);
+const batchVisible = ref(false);
 const helpVisible = ref(false);
 const contactVisible = ref(false);
 const contactType = ref<"community" | "business">("community");

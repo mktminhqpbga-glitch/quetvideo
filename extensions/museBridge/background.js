@@ -1,4 +1,4 @@
-const defaults = { relayUrl: "https://mooz-relay.onrender.com", pairingCode: "", resumeToken: "", deviceId: "chrome-main", tabId: 0, promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img" };
+const defaults = { relayUrl: "https://mooz-relay.onrender.com", pairingCode: "", resumeToken: "", deviceId: "chrome-main", tabId: 0, promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img", videoSelector: "video" };
 let ws;
 let heartbeat;
 let reconnect;
@@ -55,23 +55,48 @@ async function connect() {
       if (!(await chrome.permissions.contains({ origins: [origin] }))) throw Error("Chrome site permission is missing. Open popup and select the target tab again.");
       const [response] = await chrome.scripting.executeScript({
         target: { tabId: Number(current.tabId) }, func: runMuse,
-        args: [{ promptSelector: current.promptSelector, buttonSelector: current.buttonSelector, imageSelector: current.imageSelector, prompt: msg.prompt, ratio: msg.ratio, size: msg.size, quality: msg.quality }],
+        args: [{ promptSelector: current.promptSelector, buttonSelector: current.buttonSelector, imageSelector: current.imageSelector, videoSelector: current.videoSelector, mediaType: msg.mediaType === "video" ? "video" : "image", prompt: msg.prompt, ratio: msg.ratio, size: msg.size, quality: msg.quality }],
       });
-      if (!response?.result?.imageUrl) throw Error("No generated image found");
-      let result = { imageUrl: response.result.imageUrl };
-      if (/^blob:/.test(result.imageUrl) || /^data:/.test(result.imageUrl)) {
-        // A blob URL belongs to the Muse tab; serialize its bytes while the tab still owns it.
-        const [blob] = await chrome.scripting.executeScript({
-          target: { tabId: Number(current.tabId) }, func: async src => {
-            const response = await fetch(src);
-            const bytes = await response.blob();
-            if (!["image/png", "image/jpeg", "image/webp"].includes(bytes.type) || bytes.size > 7 * 1024 * 1024) throw Error("Image exceeds allowed size or format");
-            return await new Promise((resolve, reject) => {
-              const file = new FileReader(); file.onload = () => resolve(file.result); file.onerror = reject; file.readAsDataURL(bytes);
-            });
-          }, args: [result.imageUrl],
-        });
-        result = { imageData: blob.result };
+      const mediaType = msg.mediaType === "video" ? "video" : "image";
+      const property = mediaType === "video" ? "videoUrl" : "imageUrl";
+      const source = response?.result?.[property];
+      if (typeof source !== "string" || !source) throw Error("Muse returned no " + mediaType + " media. Check the page mode and CSS selectors.");
+      let result = { [property]: source };
+      const shouldCapture = /^blob:|^data:/.test(source) || mediaType === "video" && /^https:/.test(source);
+      if (shouldCapture) {
+        // Convert files in their owning Muse tab; protected video URLs may require session cookies.
+        // The relay is in-memory and enforces a bounded 18 MiB data URI payload.
+        try {
+          const [blob] = await chrome.scripting.executeScript({
+            target: { tabId: Number(current.tabId) },
+            func: async (src, kind) => {
+              const response = await fetch(src, { credentials: "include" });
+              if (!response.ok) throw Error("Cannot download " + kind + " from Muse");
+              const contentType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+              const length = Number(response.headers.get("content-length") || 0);
+              const limit = kind === "video" ? 12 * 1024 * 1024 : 7 * 1024 * 1024;
+              if (length > limit) throw Error(kind + " exceeds in-memory bridge limit (12 MiB for video)");
+              const file = await response.blob();
+              const mimeType = contentType || file.type;
+              if (kind === "video" && !["video/mp4", "video/webm", "video/quicktime"].includes(mimeType)) throw Error("Muse did not return a video file");
+              if (kind === "image" && !["image/png", "image/jpeg", "image/webp"].includes(mimeType)) throw Error("Muse did not return an image file");
+              if (file.size === 0 || file.size > limit) throw Error(kind + " exceeds in-memory bridge limit");
+              return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(new Blob([file], { type: mimeType }));
+              });
+            },
+            args: [source, mediaType],
+          });
+          if (!blob?.result || typeof blob.result !== "string") throw Error("Cannot serialize " + mediaType);
+          result = { [mediaType === "video" ? "videoData" : "imageData"]: blob.result };
+        } catch (e) {
+          if (!/^https:/.test(source)) throw e;
+          // Server-side fetch of a protected HTTPS link may still fail; never claim successful download.
+          result = { [property]: source };
+        }
       }
       socket.send(JSON.stringify({ type: "result", jobId: msg.jobId, result }));
     } catch (e) {
@@ -94,11 +119,17 @@ async function connect() {
 }
 
 async function runMuse(config) {
-  const { promptSelector, buttonSelector, imageSelector, prompt } = config;
+  const { promptSelector, buttonSelector, imageSelector, videoSelector, prompt, mediaType } = config;
   const field = document.querySelector(promptSelector);
   const button = document.querySelector(buttonSelector);
-  if (!field || !button) throw Error("Muse selectors did not match. Update them in the extension popup.");
-  const before = new Set([...document.querySelectorAll(imageSelector)].map(el => el.currentSrc || el.src).filter(Boolean));
+  if (!field || !button) throw Error("Muse selectors do not match. Update the Extension popup.");
+  if (mediaType !== "image" && mediaType !== "video") throw Error("Unsupported media type");
+  const readImage = el => el.currentSrc || el.src || "";
+  const readVideo = el => el.currentSrc || el.src || el.querySelector?.("source[src]")?.src || "";
+  const selector = mediaType === "video" ? videoSelector : imageSelector;
+  const read = mediaType === "video" ? readVideo : readImage;
+  if (!selector || typeof selector !== "string") throw Error("Configure the " + mediaType + " selector");
+  const before = new Set([...document.querySelectorAll(selector)].map(read).filter(Boolean));
   if (field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) {
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(field), "value")?.set;
     if (setter) setter.call(field, prompt); else field.value = prompt;
@@ -109,17 +140,24 @@ async function runMuse(config) {
     field.textContent = prompt;
     field.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: prompt }));
   } else throw Error("Prompt selector must target an editable field");
+  // Set the intended Image/Video mode manually on Muse before submitting; don't guess UI controls.
   button.click();
   const until = Date.now() + 8 * 60_000;
   while (Date.now() < until) {
     await new Promise(resolve => setTimeout(resolve, 2000));
-    for (const image of document.querySelectorAll(imageSelector)) {
-      const src = image.currentSrc || image.src;
-      if (!src || before.has(src) || !image.complete || image.naturalWidth < 256 || image.naturalHeight < 256) continue;
-      return { imageUrl: src };
+    for (const el of document.querySelectorAll(selector)) {
+      const src = read(el);
+      if (!src || before.has(src) || !/^(?:https:|blob:|data:)/.test(src)) continue;
+      if (mediaType === "image") {
+        if (!el.complete || el.naturalWidth < 256 || el.naturalHeight < 256) continue;
+        return { imageUrl: src };
+      }
+      const video = el.tagName === "VIDEO" ? el : el.closest?.("video");
+      if (!video || video.readyState < 1) continue;
+      return { videoUrl: src };
     }
   }
-  throw Error("No new image detected. Check Muse and the image selector.");
+  throw Error("No new " + mediaType + " detected. Inspect Muse output and selectors; prompt was NOT resubmitted.");
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
