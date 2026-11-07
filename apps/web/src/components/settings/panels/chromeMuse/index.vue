@@ -11,7 +11,7 @@
     <section class="extensionCard">
       <h3>2. Cài vào Google Chrome</h3>
       <p>Mở <code>chrome://extensions</code>, bật Developer mode, chọn Load unpacked rồi chọn thư mục vừa giải nén.</p>
-      <el-button @click="openChromeExtensions">Mở trang quản lý Extension</el-button>
+      <el-button @click="copyChromeExtensions">Sao chép chrome://extensions</el-button>
     </section>
     <section class="extensionCard">
       <h3>3. Kết nối với Render</h3>
@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import { zipSync, strToU8 } from "fflate";
 import { IconDownload } from "@tabler/icons-vue";
+import { ElMessage } from "element-plus";
 import extension0 from "../../../../../../../extensions/museBridge/manifest.json?raw";
 import extension1 from "../../../../../../../extensions/museBridge/background.js?raw";
 import extension2 from "../../../../../../../extensions/museBridge/popup.html?raw";
@@ -56,10 +57,13 @@ function downloadExtension() {
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
 }
-function openChromeExtensions() {
-  // chrome:// is not navigable from ordinary web pages; a direct attempt
-  // may be blocked. The user can paste the address into Chrome manually.
-  window.open("chrome://extensions", "_blank");
+async function copyChromeExtensions() {
+  try {
+    await navigator.clipboard.writeText("chrome://extensions");
+    ElMessage.success("Đã sao chép. Dán vào thanh địa chỉ Chrome.");
+  } catch {
+    ElMessage.info("Nhập chrome://extensions vào thanh địa chỉ Chrome.");
+  }
 }
 function openGuide() {
   window.open("https://github.com/mktminhqpbga-glitch/quetvideo/blob/main/docs/chromeMuseSetup.md", "_blank", "noopener,noreferrer");
