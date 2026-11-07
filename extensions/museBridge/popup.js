@@ -1,5 +1,5 @@
-const keys = ["relayUrl", "token", "deviceId", "tabId", "promptSelector", "buttonSelector", "imageSelector"];
-const defaults = { deviceId: "chrome-main", promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img" };
+const keys = ["relayUrl", "pairingCode", "deviceId", "tabId", "promptSelector", "buttonSelector", "imageSelector"];
+const defaults = { relayUrl: "https://mooz-relay.onrender.com", deviceId: "chrome-main", promptSelector: "textarea", buttonSelector: "button[type=submit]", imageSelector: "img" };
 async function load() {
   const config = { ...defaults, ...await chrome.storage.local.get([...keys, "bridgeState", "bridgeMessage"]) };
   for (const tab of await chrome.tabs.query({})) {
@@ -16,8 +16,14 @@ document.getElementById("save").onclick = async () => {
   if (!config.tabId) { alert("Select the Muse tab first"); return; }
   const tab = await chrome.tabs.get(Number(config.tabId));
   const origin = new URL(tab.url).origin + "/*";
-  const granted = await chrome.permissions.request({ origins: [origin] });
+  const relay = new URL(config.relayUrl);
+  if (relay.protocol !== "https:" && !(relay.protocol === "http:" && ["localhost", "127.0.0.1"].includes(relay.hostname))) {
+    alert("Relay URL must use HTTPS"); return;
+  }
+  const granted = await chrome.permissions.request({ origins: [origin, relay.origin + "/*"] });
   if (!granted) { alert("Site permission was denied"); return; }
+  const previous = await chrome.storage.local.get(["deviceId", "relayUrl"]);
+  if (config.pairingCode || previous.deviceId !== config.deviceId || previous.relayUrl !== config.relayUrl) await chrome.storage.local.remove("resumeToken");
   await chrome.storage.local.set(config);
   await chrome.runtime.sendMessage({ type: "connect" });
   window.close();
