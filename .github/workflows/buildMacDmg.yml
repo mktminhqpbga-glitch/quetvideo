@@ -1,0 +1,125 @@
+name: Build ToonFlow macOS DMG
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/buildMacDmg.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toonflow-macos-dmg-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  macos:
+    name: Mac DMG (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-15-intel
+            outputDir: macX64
+          - arch: arm64
+            runner: macos-15
+            outputDir: macArm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 100
+    env:
+      macCodesign: "0"
+      generateUpdatePatch: "0"
+      TOONFLOW_EXTERNAL_RUNTIME: "0"
+      appVersion: "2.0.0"
+      ELECTROBUN_SKIP_NOTARIZATION: "1"
+    steps:
+      - name: Checkout ToonFlow
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Verify architecture and Xcode tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "macOS: $(sw_vers -productVersion)"
+          echo "CPU: $(uname -m)"
+          if [[ "${{ matrix.arch }}" == "x64" ]]; then
+            test "$(uname -m)" = "x86_64"
+          else
+            test "$(uname -m)" = "arm64"
+          fi
+          xcrun --find clang++
+          bun --version
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Compile native macOS splash libraries
+        run: bun packages/startup/scripts/buildMac.ts ${{ matrix.arch }}
+      - name: Package self-contained ToonFlow desktop app and DMG
+        run: bun run package:desktop
+      - name: Verify generated disk image
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG="build/desktop/artifacts/${{ matrix.outputDir }}/toonflow-2.0.0-macos-${{ matrix.arch }}.dmg"
+          test -s "$DMG"
+          hdiutil verify "$DMG"
+          shasum -a 256 "$DMG"
+          ls -lh "$DMG"
+      - name: Upload downloadable DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: toonflow-macos-${{ matrix.arch }}
+          path: build/desktop/artifacts/${{ matrix.outputDir }}/toonflow-2.0.0-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  release:
+    name: Publish GitHub Release (.dmg)
+    needs: [macos]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Download successful DMG builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: toonflow-macos-*
+          merge-multiple: true
+          path: dist
+      - name: Verify files to publish
+        id: files
+        shell: bash
+        run: |
+          set -euo pipefail
+          find dist -maxdepth 1 -type f -name '*.dmg' -print
+          shopt -s nullglob
+          files=(dist/*.dmg)
+          if (( ${#files[@]} == 0 )); then
+            echo "No DMG was successfully built" >&2
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            hdiutil_note="Checksum available below"
+            sha256sum "$file"
+          done
+      - name: Create prerelease with direct DMG assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="toonflow-macos-ci-${{ github.run_number }}"
+          gh release create "$tag" dist/*.dmg \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "ToonFlow Studio VN — macOS DMG (build ${{ github.run_number }})" \
+            --notes "Standalone macOS ToonFlow build with Canvas, Chrome & Muse settings, and MooZ batch video UI. Select x64 for Intel Mac or arm64 for Apple Silicon M-series. Unsigned and not notarized; macOS may require approval in Privacy & Security. Muse bridge/Render require separate configuration. Build may not include both architectures if a runner fails." \
+            --prerelease
