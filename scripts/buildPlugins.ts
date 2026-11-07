@@ -15,12 +15,12 @@ for (const group of ["tools", "nodes", "ext"] as const) {
     const packageJson = JSON.parse(await Bun.file(resolve(cwd, "package.json")).text()) as { scripts?: { build?: string } };
     if (!packageJson.scripts?.build) continue;
     console.log("Building", group + "/" + entry.name);
-    const process = Bun.spawn([process.execPath, "run", "build"], {
+    const child = Bun.spawn([process.execPath, "run", "build"], {
       cwd,
       env: { ...Bun.env, NODE_ENV: "dev" },
       stdout: "inherit", stderr: "inherit", stdin: "ignore",
     });
-    if (await process.exited !== 0) throw new Error("Could not build " + group + "/" + entry.name);
+    if (await child.exited !== 0) throw new Error("Could not build " + group + "/" + entry.name);
     built++;
   }
 }
