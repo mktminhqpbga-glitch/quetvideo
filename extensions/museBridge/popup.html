@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font:13px system-ui;width:340px;padding:14px;background:#141924;color:#eef2fa}label{display:block;margin:9px 0 4px}input,select{width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #536072;background:#222a39;color:white}button{padding:9px 11px;margin-top:12px;border:0;border-radius:6px;background:#6875f5;color:white;cursor:pointer}button.secondary{background:#394357}#status{padding:9px 0;color:#b9d4ff}small{color:#a4b1cb}</style></head><body>
+<h2>ToonFlow Muse Bridge</h2><div id="status">Checking connection...</div>
+<label>Render relay URL</label><input id="relayUrl" placeholder="https://your-relay.onrender.com">
+<label>Relay token</label><input id="token" type="password" autocomplete="off">
+<label>Device ID</label><input id="deviceId" placeholder="chrome-main">
+<label>Muse tab</label><select id="tabId"><option value="">Select tab...</option></select>
+<small>Selectors are specific to the Muse site. Inspect its UI and configure them below.</small>
+<label>Prompt CSS selector</label><input id="promptSelector" value="textarea">
+<label>Generate button CSS selector</label><input id="buttonSelector" value="button[type=submit]">
+<label>Generated image CSS selector</label><input id="imageSelector" value="img">
+<button id="save">Save &amp; connect</button> <button class="secondary" id="stop">Disconnect</button>
+<script src="popup.js"></script></body></html>
